@@ -113,15 +113,22 @@ surfaces as `spawn /bin/bash ENOENT`. Stronger isolation is a `local()` → remo
 
 ## Validation performed
 
-- `tsc --noEmit` clean; `flue build` discovers `d0lt-bot` (no workflows).
-- Live agent endpoint: a `POST /agents/d0lt-bot/:id` confirmed the async initializer runs (it
-  created the per-instance scratch dir) and the `local()` sandbox + cwd initialize without
-  `ENOENT`; the only failure is the model call when no `ANTHROPIC_API_KEY` is set.
+- `tsc --noEmit` clean; `flue build` discovers `d0lt-bot` (no workflows); `oxlint` (type-aware)
+  and `oxfmt` clean.
 - The relative clone script (public form) and the token-auth `-c extraheader` form (bash syntax
-  - runtime header transmission) against a real public PR, including `merge-base` diff +
-    `--numstat`.
-- Not exercised (needs `ANTHROPIC_API_KEY`, as in the original): the live model review/test and
-  `task` delegation.
+  + runtime header transmission) against a real public PR, including `merge-base` diff +
+  `--numstat`.
+- **End to end with a real `ANTHROPIC_API_KEY`** (`POST /agents/d0lt-bot/:id?wait=result`):
+  - Review path: "Review octocat/Hello-World#1" → router delegated to `reviewer` → `fetch_repo`
+    + bash clone → read `pr.diff` → accurate structured review (correct diff size 1 file/+6/−1),
+    narrated by the router. ~42s, ~$0.02.
+  - Test path: "Run the tests for jshttp/cookie" → `test_runner` cloned, detected the stack
+    (Node/TS, npm), installed deps, ran `npm test`, reported PASS (229 tests) with real
+    coverage/bundle details. ~37s, ~$0.01.
+  - Confirms `task` delegation, the shared `local()` sandbox + bash tool, and the
+    `fetch_repo` → bash clone flow all work.
+- Not exercised: a genuinely private repo + `GITHUB_TOKEN` (no private fixture on hand); the
+  graceful private-repo path was checked earlier against a nonexistent repo.
 
 ## Out of scope (matches the original POC)
 
