@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.flue/
+.env
+.env.*
+!.env.example
+*.log
