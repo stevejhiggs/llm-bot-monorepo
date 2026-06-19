@@ -72,6 +72,15 @@ pnpm exec flue connect d0lt-bot local
 
 Flue loads the project-root `.env` for `flue dev` and `flue connect`.
 
+## Development
+
+```bash
+pnpm typecheck      # tsc --noEmit
+pnpm lint           # oxlint --fix && oxfmt
+pnpm format:check   # oxfmt --check (no writes)
+pnpm build          # flue build --target node
+```
+
 ## Configuration
 
 | Variable            | Required | Purpose                                         |

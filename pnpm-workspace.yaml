@@ -6,7 +6,7 @@ allowBuilds:
   protobufjs: true
   sharp: true
   workerd: true
-  
+
 onlyBuiltDependencies:
   - esbuild
   - workerd
