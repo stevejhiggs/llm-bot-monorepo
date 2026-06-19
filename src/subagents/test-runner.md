@@ -12,8 +12,8 @@ Steps:
      `package-lock.json`→npm, `bun.lockb`→bun).
    - Python: `pyproject.toml`, `requirements.txt`, `tox.ini`, `pytest.ini`.
    - Go: `go.mod`. Rust: `Cargo.toml`. Ruby: `Gemfile`. Others: infer similarly.
-   Check the needed toolchain exists (`node -v`, `python3 --version`, `go version`, etc.). The
-   host has git and node; install or report what is missing.
+     Check the needed toolchain exists (`node -v`, `python3 --version`, `go version`, etc.). The
+     host has git and node; install or report what is missing.
 
 3. Install dependencies with the right command for the detected stack (`pnpm install`,
    `npm install`, `pip install -r requirements.txt`, `go mod download`, …). Network egress is

@@ -1,12 +1,13 @@
-import { mkdir } from 'node:fs/promises';
-import { createAgent, type AgentRouteHandler } from '@flue/runtime';
-import { local } from '@flue/runtime/node';
-import instructions from './d0lt-bot.md' with { type: 'markdown' };
-import reviewer from '../subagents/reviewer.ts';
-import testRunner from '../subagents/test-runner.ts';
-import { workDir } from '../lib/github.ts';
+import { mkdir } from "node:fs/promises";
+import { createAgent, type AgentRouteHandler } from "@flue/runtime";
+import { local } from "@flue/runtime/node";
+import instructions from "./d0lt-bot.md" with { type: "markdown" };
+import reviewer from "../subagents/reviewer.ts";
+import testRunner from "../subagents/test-runner.ts";
+import { workDir } from "../lib/github.ts";
 
-export const description = 'GitHub assistant: routes PR reviews and test runs to specialist subagents.';
+export const description =
+  "GitHub assistant: routes PR reviews and test runs to specialist subagents.";
 
 // Exposes the agent over HTTP so `flue connect d0lt-bot <id>` can chat with it.
 export const route: AgentRouteHandler = async (_c, next) => next();
@@ -22,7 +23,7 @@ export default createAgent(async ({ id }) => {
   await mkdir(cwd, { recursive: true });
 
   return {
-    model: 'anthropic/claude-sonnet-4-6',
+    model: "anthropic/claude-sonnet-4-6",
     instructions,
     // GITHUB_TOKEN (when set) is exposed to the sandbox so private clones can
     // authenticate via $GITHUB_TOKEN at run time, without the secret ever entering

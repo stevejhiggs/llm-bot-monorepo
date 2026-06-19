@@ -2,7 +2,7 @@
 // chat agent's bridge tools (which validate a URL before forwarding it to a workflow).
 // Nothing here touches a sandbox or the network — see the workflows for that.
 
-import { tmpdir } from 'node:os';
+import { tmpdir } from "node:os";
 
 /**
  * An isolated per-run working directory for a clone. Flue's `local()` sandbox
@@ -10,8 +10,8 @@ import { tmpdir } from 'node:os';
  * run id (an alphanumeric ULID) under the OS temp dir, never the project dir.
  */
 export function workDir(runId: string): string {
-  const safe = runId.replace(/[^A-Za-z0-9._-]/g, '');
-  return `${tmpdir()}/d0lt-bot/${safe || 'run'}`;
+  const safe = runId.replace(/[^A-Za-z0-9._-]/g, "");
+  return `${tmpdir()}/d0lt-bot/${safe || "run"}`;
 }
 
 // Restrict owner/repo to GitHub's allowed characters so the values are always
@@ -22,8 +22,8 @@ const REPO_URL =
   /^https?:\/\/github\.com\/([A-Za-z0-9-]+)\/([A-Za-z0-9._-]+?)(?:\.git)?(?:\/tree\/([^/?#]+))?\/?(?:[?#].*)?$/;
 
 export type GitHubTarget =
-  | { kind: 'pr'; owner: string; repo: string; number: number }
-  | { kind: 'repo'; owner: string; repo: string; ref?: string };
+  | { kind: "pr"; owner: string; repo: string; number: number }
+  | { kind: "repo"; owner: string; repo: string; ref?: string };
 
 /**
  * Parse a GitHub repo URL or PR URL into a target. A PR URL resolves to the PR
@@ -35,7 +35,7 @@ export function parseGitHubTarget(url: string, refOverride?: string): GitHubTarg
   const pr = PR_URL.exec(trimmed);
   if (pr) {
     const [, owner, repo, number] = pr;
-    return { kind: 'pr', owner, repo, number: Number(number) };
+    return { kind: "pr", owner, repo, number: Number(number) };
   }
   const repoMatch = REPO_URL.exec(trimmed);
   if (!repoMatch) {
@@ -45,13 +45,13 @@ export function parseGitHubTarget(url: string, refOverride?: string): GitHubTarg
   }
   const [, owner, repo, treeRef] = repoMatch;
   const ref = refOverride ?? treeRef;
-  return ref ? { kind: 'repo', owner, repo, ref } : { kind: 'repo', owner, repo };
+  return ref ? { kind: "repo", owner, repo, ref } : { kind: "repo", owner, repo };
 }
 
 /** Parse a PR URL specifically, rejecting non-PR GitHub URLs. */
-export function parsePrTarget(url: string): Extract<GitHubTarget, { kind: 'pr' }> {
+export function parsePrTarget(url: string): Extract<GitHubTarget, { kind: "pr" }> {
   const target = parseGitHubTarget(url);
-  if (target.kind !== 'pr') {
+  if (target.kind !== "pr") {
     throw new Error(`Expected a GitHub pull-request URL, got: ${url}`);
   }
   return target;
@@ -65,7 +65,7 @@ const SAFE_REF = /^[A-Za-z0-9._/-]+$/;
  * Rejects metacharacters and a leading `-` (which git would read as a flag).
  */
 export function assertSafeRef(ref: string): string {
-  if (!SAFE_REF.test(ref) || ref.startsWith('-')) {
+  if (!SAFE_REF.test(ref) || ref.startsWith("-")) {
     throw new Error(`Unsafe git ref: ${ref}`);
   }
   return ref;
@@ -101,27 +101,27 @@ export function buildCloneScript(target: GitHubTarget): string {
   const auth = process.env.GITHUB_TOKEN
     ? ' -c http.https://github.com/.extraheader="Authorization: Basic ' +
       "$(printf 'x-access-token:%s' \"$GITHUB_TOKEN\" | base64 | tr -d '\\n')\""
-    : '';
+    : "";
   const lines = [
-    'set -euo pipefail',
-    'export GIT_TERMINAL_PROMPT=0', // fail fast on private-without-token instead of prompting
-    'rm -rf repo pr.diff',
+    "set -euo pipefail",
+    "export GIT_TERMINAL_PROMPT=0", // fail fast on private-without-token instead of prompting
+    "rm -rf repo pr.diff",
     `git${auth} clone --filter=blob:none --quiet ${repoUrl} repo`,
-    'cd repo',
+    "cd repo",
   ];
-  if (target.kind === 'pr') {
+  if (target.kind === "pr") {
     lines.push(
       `git${auth} fetch --quiet origin pull/${target.number}/head:pr`,
-      'git checkout --quiet pr',
+      "git checkout --quiet pr",
       'BASE="$(git merge-base origin/HEAD pr)"',
       'git diff "$BASE" pr > ../pr.diff',
     );
   } else if (target.ref) {
     lines.push(`git checkout --quiet "${assertSafeRef(target.ref)}"`);
   }
-  lines.push('git rev-parse --short HEAD');
-  if (target.kind === 'pr') {
+  lines.push("git rev-parse --short HEAD");
+  if (target.kind === "pr") {
     lines.push('echo "---DIFF---"', 'git diff --numstat "$BASE" pr');
   }
-  return lines.join('\n');
+  return lines.join("\n");
 }

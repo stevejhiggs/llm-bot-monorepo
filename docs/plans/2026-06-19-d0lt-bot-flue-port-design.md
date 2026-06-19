@@ -12,18 +12,18 @@ the original, it is a POC and does not post results back to GitHub.
 
 ## Framework mapping
 
-| Concern              | eve                                            | Flue                                                              |
-| -------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
-| Define an agent      | `defineAgent({ model, instructions })`         | `createAgent(() => ({ model, instructions, subagents, sandbox }))` |
-| Model specifier      | `anthropic("claude-sonnet-4-6")`               | `'anthropic/claude-sonnet-4-6'` (string)                         |
-| Define a subagent    | subagent directory with `outputSchema`         | `defineAgentProfile({ name, description, instructions, tools })` |
-| Delegate             | declared subagents                             | built-in `task` capability over `subagents: [...]`              |
-| Schemas              | zod                                            | valibot (for tool `parameters`)                                  |
-| Define a tool        | `defineTool({ inputSchema, execute(args, ctx) })` | `defineTool({ name, parameters, execute(args) })`             |
-| Tool sandbox access  | `ctx.getSandbox().run()`                       | **none** — `execute` gets only validated args                    |
-| Sandbox              | `defineSandbox({ onSession })`                 | `local()` from `@flue/runtime/node` (host); remote via `flue add` |
-| Chat entry           | `eveChannel({ auth })` HTTP                     | agent `route` export + `flue connect <agent> <id>`               |
-| Model credentials    | `ANTHROPIC_API_KEY` (direct)                   | `ANTHROPIC_API_KEY` in `.env` (direct, Pi catalog provider)      |
+| Concern             | eve                                               | Flue                                                               |
+| ------------------- | ------------------------------------------------- | ------------------------------------------------------------------ |
+| Define an agent     | `defineAgent({ model, instructions })`            | `createAgent(() => ({ model, instructions, subagents, sandbox }))` |
+| Model specifier     | `anthropic("claude-sonnet-4-6")`                  | `'anthropic/claude-sonnet-4-6'` (string)                           |
+| Define a subagent   | subagent directory with `outputSchema`            | `defineAgentProfile({ name, description, instructions, tools })`   |
+| Delegate            | declared subagents                                | built-in `task` capability over `subagents: [...]`                 |
+| Schemas             | zod                                               | valibot (for tool `parameters`)                                    |
+| Define a tool       | `defineTool({ inputSchema, execute(args, ctx) })` | `defineTool({ name, parameters, execute(args) })`                  |
+| Tool sandbox access | `ctx.getSandbox().run()`                          | **none** — `execute` gets only validated args                      |
+| Sandbox             | `defineSandbox({ onSession })`                    | `local()` from `@flue/runtime/node` (host); remote via `flue add`  |
+| Chat entry          | `eveChannel({ auth })` HTTP                       | agent `route` export + `flue connect <agent> <id>`                 |
+| Model credentials   | `ANTHROPIC_API_KEY` (direct)                      | `ANTHROPIC_API_KEY` in `.env` (direct, Pi catalog provider)        |
 
 ## The decisive constraint
 
@@ -31,7 +31,7 @@ In eve, the `fetch_repo` **tool** clones into the sandbox via `ctx.getSandbox().
 tool contract is narrower — confirmed from the installed types:
 
 ```ts
-execute: (args: ToolArgs<TParams>, signal?: AbortSignal) => Promise<string>
+execute: (args: ToolArgs<TParams>, signal?: AbortSignal) => Promise<string>;
 ```
 
 No harness, no sandbox, no `fs`/`shell`. The only things that can touch a sandbox are a
@@ -76,6 +76,7 @@ deterministic clone, but the self-HTTP bridge (`invoke-workflow.ts`, `FLUE_SELF_
 "server must be running") was the least elegant part and diverged from eve's structure.
 
 The second pass dropped the workflows and bridge entirely for **subagents only**:
+
 - Removes the bridge — `task` returns the subagent's result in-process.
 - Structurally identical to eve (root → two subagents, one shared sandbox); less code.
 
@@ -117,8 +118,8 @@ surfaces as `spawn /bin/bash ENOENT`. Stronger isolation is a `local()` → remo
   created the per-instance scratch dir) and the `local()` sandbox + cwd initialize without
   `ENOENT`; the only failure is the model call when no `ANTHROPIC_API_KEY` is set.
 - The relative clone script (public form) and the token-auth `-c extraheader` form (bash syntax
-  + runtime header transmission) against a real public PR, including `merge-base` diff +
-  `--numstat`.
+  - runtime header transmission) against a real public PR, including `merge-base` diff +
+    `--numstat`.
 - Not exercised (needs `ANTHROPIC_API_KEY`, as in the original): the live model review/test and
   `task` delegation.
 
