@@ -44,7 +44,7 @@ function pullRequestOpened(opts: { action?: string; number?: number } = {}): Git
   } as unknown as GitHubWebhookDelivery;
 }
 
-void test("PR comment with the trigger phrase plans a PR review dispatch", () => {
+test("PR comment with the trigger phrase plans a PR review dispatch", () => {
   const plan = planDelivery(issueComment({ isPr: true, number: 7 }), PHRASE);
   assert.ok(plan);
   assert.deepEqual(plan.ref, { owner: "owner", repo: "repo", issueNumber: 7 });
@@ -55,7 +55,7 @@ void test("PR comment with the trigger phrase plans a PR review dispatch", () =>
   assert.equal(plan.input.instruction, `${PHRASE} review this`);
 });
 
-void test("plain-issue comment with the trigger phrase plans a repo dispatch", () => {
+test("plain-issue comment with the trigger phrase plans a repo dispatch", () => {
   const plan = planDelivery(issueComment({ isPr: false, number: 9 }), PHRASE);
   assert.ok(plan);
   assert.deepEqual(plan.ref, { owner: "owner", repo: "repo", issueNumber: 9 });
@@ -63,7 +63,7 @@ void test("plain-issue comment with the trigger phrase plans a repo dispatch", (
   assert.equal(plan.input.target.url, "https://github.com/owner/repo");
 });
 
-void test("pull_request.opened plans an auto-review dispatch", () => {
+test("pull_request.opened plans an auto-review dispatch", () => {
   const plan = planDelivery(pullRequestOpened({ number: 42 }), PHRASE);
   assert.ok(plan);
   assert.deepEqual(plan.ref, { owner: "owner", repo: "repo", issueNumber: 42 });
@@ -73,23 +73,23 @@ void test("pull_request.opened plans an auto-review dispatch", () => {
   assert.match(plan.input.instruction, /review/i);
 });
 
-void test("comment without the trigger phrase is ignored", () => {
+test("comment without the trigger phrase is ignored", () => {
   assert.equal(planDelivery(issueComment({ body: "looks good to me" }), PHRASE), null);
 });
 
-void test("comment from a bot account is ignored (loop prevention)", () => {
+test("comment from a bot account is ignored (loop prevention)", () => {
   assert.equal(planDelivery(issueComment({ senderType: "Bot" }), PHRASE), null);
 });
 
-void test("non-created comment actions are ignored", () => {
+test("non-created comment actions are ignored", () => {
   assert.equal(planDelivery(issueComment({ action: "edited" }), PHRASE), null);
 });
 
-void test("non-opened pull_request actions are ignored", () => {
+test("non-opened pull_request actions are ignored", () => {
   assert.equal(planDelivery(pullRequestOpened({ action: "synchronize" }), PHRASE), null);
 });
 
-void test("unhandled events are ignored", () => {
+test("unhandled events are ignored", () => {
   const delivery = {
     name: "push",
     deliveryId: "d",
@@ -98,12 +98,12 @@ void test("unhandled events are ignored", () => {
   assert.equal(planDelivery(delivery, PHRASE), null);
 });
 
-void test("trigger-phrase match is case-insensitive", () => {
+test("trigger-phrase match is case-insensitive", () => {
   const plan = planDelivery(issueComment({ isPr: true, body: "@D0LT-BOT please review" }), PHRASE);
   assert.ok(plan);
 });
 
-void test("commentOnIssue posts to the bound issue and returns the comment id and url", async () => {
+test("commentOnIssue posts to the bound issue and returns the comment id and url", async () => {
   const calls: Array<{ url: string; method?: string; body?: unknown }> = [];
   const fakeFetch: typeof fetch = async (input, init) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;

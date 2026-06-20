@@ -6,6 +6,14 @@
     "correctness": "error"
   },
   "rules": {},
+  "overrides": [
+    {
+      "files": ["**/*.test.ts"],
+      "rules": {
+        "typescript/no-floating-promises": "off"
+      }
+    }
+  ],
   "env": {
     "builtin": true
   },
