@@ -44,7 +44,7 @@ the clone without ever entering the model's context or the host's git config.
 
 ## Usage
 
-Start the server, then chat with the agent over `flue connect`:
+Start the server (`pnpm dev`), then chat with the agent via `pnpm connect`:
 
 - `Review https://github.com/owner/repo/pull/123`
 - `Run the tests for https://github.com/owner/repo`
@@ -67,7 +67,7 @@ echo 'ANTHROPIC_API_KEY="sk-ant-..."' >> .env
 pnpm dev          # http://127.0.0.1:3583
 
 # In another terminal, chat with the bot:
-pnpm exec flue connect d0lt-bot local
+pnpm connect
 ```
 
 Flue loads the project-root `.env` for `flue dev` and `flue connect`.

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "flue dev --target node",
     "build": "flue build --target node",
+    "connect": "flue connect d0lt-bot local",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --fix && oxfmt",
     "lint:fix": "oxlint --fix",
