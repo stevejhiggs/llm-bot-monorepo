@@ -49,18 +49,14 @@ interface SlackMessageLike {
 export function planSlackEvent(payload: SlackEventsApiPayload): SlackDispatchPlan | null {
   if (payload.type !== "event_callback") return null;
   const event = payload.event;
+  // Slack's message union spans many subtypes; read the fields we need structurally.
+  const message = event as unknown as SlackMessageLike;
 
   if (event.type === "app_mention") {
-    return makePlan(
-      payload.team_id,
-      payload.event_id,
-      event as unknown as SlackMessageLike,
-      "slack.app_mention",
-    );
+    return makePlan(payload.team_id, payload.event_id, message, "slack.app_mention");
   }
 
   if (event.type === "message") {
-    const message = event as unknown as SlackMessageLike;
     // Skip the bot's own posts and edit/join/system subtypes so a reply can never
     // re-trigger the bot.
     if (message.bot_id || message.subtype) return null;
