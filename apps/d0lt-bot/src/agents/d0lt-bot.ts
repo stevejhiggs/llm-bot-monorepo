@@ -1,34 +1,41 @@
-import { mkdir } from "node:fs/promises";
 import { createAgent, type AgentRouteHandler } from "@flue/runtime";
-import { local } from "@flue/runtime/node";
+import { resolveSandboxKind } from "../lib/sandbox.ts";
 import instructions from "./d0lt-bot.md" with { type: "markdown" };
 import reviewer from "../subagents/reviewer.ts";
 import testRunner from "../subagents/test-runner.ts";
-import { workDir } from "../lib/github.ts";
 
 export const description =
   "GitHub assistant: routes PR reviews and test runs to specialist subagents.";
 
-// Exposes the agent over HTTP so `flue connect d0lt-bot <id>` can chat with it.
 export const route: AgentRouteHandler = async (_c, next) => next();
 
-// Root router. It owns the local() sandbox; its two subagents share it and do the
-// clone/diff/install/test work there via their bash tool. This mirrors the eve
-// original's root agent that routed to two specialist subagents.
-export default createAgent(async ({ id }) => {
-  // Each chat instance gets its own scratch dir. local() spawns shells with cwd set
-  // to it, so it must exist before the harness initializes (an absent cwd surfaces
-  // as `spawn /bin/bash ENOENT`).
-  const cwd = workDir(id);
-  await mkdir(cwd, { recursive: true });
+// Root router. It owns the sandbox; its two subagents share it. The sandbox
+// implementation is selected at runtime: the node local() sandbox for dev
+// (FLUE_SANDBOX unset), or a Cloudflare container sandbox when deployed
+// (FLUE_SANDBOX=cloudflare). Dynamic import() keeps each target's sandbox
+// module out of the other target's bundle.
+export default createAgent(async ({ id, env }) => {
+  const kind = resolveSandboxKind(process.env);
+
+  const { sandbox, cwd } =
+    kind === "cloudflare"
+      ? await (
+          await import("../lib/sandbox.cloudflare.ts")
+        ).createCloudflareSandbox({
+          id,
+          env: {
+            Sandbox: (env as any).Sandbox,
+            GITHUB_TOKEN: (env as any).GITHUB_TOKEN,
+          },
+        })
+      : await (
+          await import("../lib/sandbox.node.ts")
+        ).createNodeSandbox({ id });
 
   return {
     model: "anthropic/claude-sonnet-4-6",
     instructions,
-    // GITHUB_TOKEN (when set) is exposed to the sandbox so private clones can
-    // authenticate via $GITHUB_TOKEN at run time, without the secret ever entering
-    // the model's context. Undefined drops it (public repos clone anonymously).
-    sandbox: local({ env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN } }),
+    sandbox,
     cwd,
     subagents: [reviewer, testRunner],
   };
