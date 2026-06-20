@@ -122,17 +122,3 @@ turbo.json                 # task pipeline (build / dev / typecheck)
 tsconfig.base.json         # shared TS compiler options
 docs/plans/                # design document
 ```
-
-## How this differs from the eve original
-
-The two are feature-equivalent; the framework forces a few differences:
-
-| eve original                                  | this Flue port                                                                                              |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `fetch_repo` **tool** clones into the sandbox | `fetch_repo` tool returns a safe clone _command_ the subagent runs via bash (tools have no sandbox in Flue) |
-| declared subagents with `outputSchema`        | `defineAgentProfile` subagents; results relayed as structured markdown (profiles have no output schema)     |
-| isolated sandbox (microsandbox/Docker/Vercel) | Flue `local()` host sandbox (swappable for a remote one)                                                    |
-| zod, `defineAgent`, `eveChannel`              | valibot, `createAgent`, `route` export + `flue connect`                                                     |
-| credential brokering at the sandbox firewall  | `$GITHUB_TOKEN` from the sandbox env (kept out of model context)                                            |
-
-See [`docs/plans/`](docs/plans/) for the design write-up.
