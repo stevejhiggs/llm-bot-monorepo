@@ -1,8 +1,23 @@
 import { createAgent, type AgentRouteHandler } from "@flue/runtime";
 import { resolveSandboxKind } from "../lib/sandbox.ts";
+import { channel } from "../channels/github.ts";
+import { commentOnIssue } from "../lib/github-webhook.ts";
 import instructions from "./d0lt-bot.md" with { type: "markdown" };
 import reviewer from "../subagents/reviewer.ts";
 import testRunner from "../subagents/test-runner.ts";
+
+// When a turn arrives from the GitHub channel, the instance id is the channel's
+// conversation key and parses back to the bound issue/PR — so the agent gets a
+// comment tool fixed to that thread. Direct chat ids (e.g. "local") aren't keys
+// and throw, leaving chat sessions with no GitHub tool. Read inside the deferred
+// initializer to keep the channel ⇄ agent import cycle safe.
+function githubTools(id: string) {
+  try {
+    return [commentOnIssue(channel.parseConversationKey(id))];
+  } catch {
+    return [];
+  }
+}
 
 export const description =
   "GitHub assistant: routes PR reviews and test runs to specialist subagents.";
@@ -28,9 +43,7 @@ export default createAgent(async ({ id, env }) => {
             GITHUB_TOKEN: (env as any).GITHUB_TOKEN,
           },
         })
-      : await (
-          await import("../lib/sandbox.node.ts")
-        ).createNodeSandbox({ id });
+      : await (await import("../lib/sandbox.node.ts")).createNodeSandbox({ id });
 
   return {
     model: "anthropic/claude-sonnet-4-6",
@@ -38,5 +51,6 @@ export default createAgent(async ({ id, env }) => {
     sandbox,
     cwd,
     subagents: [reviewer, testRunner],
+    tools: githubTools(id),
   };
 });
