@@ -30,9 +30,9 @@ you ──chat (flue connect)──▶ d0lt-bot (router agent, owns the local() 
 ```
 
 Both subagents share one `fetch_repo` tool, defined once in
-[`src/tools/fetch-repo.ts`](src/tools/fetch-repo.ts). In Flue a tool's `execute` receives only
+[`apps/d0lt-bot/src/tools/fetch-repo.ts`](apps/d0lt-bot/src/tools/fetch-repo.ts). In Flue a tool's `execute` receives only
 its validated arguments — no sandbox — so `fetch_repo` does not clone; it validates the GitHub
-URL with the shared helpers in [`src/lib/github.ts`](src/lib/github.ts) and returns the exact,
+URL with the shared helpers in [`apps/d0lt-bot/src/lib/github.ts`](apps/d0lt-bot/src/lib/github.ts) and returns the exact,
 injection-safe shell command. The subagent then runs that command with its bash tool inside the
 router's `local()` sandbox, reads the diff / runs the tests, and returns its result for the
 router to narrate.
@@ -52,16 +52,19 @@ Start the server (`pnpm dev`), then chat with the agent via `pnpm connect`:
 
 ## Getting started
 
+This is a [Turborepo](https://turborepo.com) monorepo; the bot lives in
+[`apps/d0lt-bot`](apps/d0lt-bot). The root `pnpm` scripts fan out to the workspace via `turbo`.
+
 Requirements: **Node 24** and a package manager (`pnpm` recommended).
 
 ```bash
 pnpm install
 
 # Set your Anthropic API key (used directly, not via a gateway).
-cp .env.example .env
-echo 'ANTHROPIC_API_KEY="sk-ant-..."' >> .env
+cp apps/d0lt-bot/.env.example apps/d0lt-bot/.env
+echo 'ANTHROPIC_API_KEY="sk-ant-..."' >> apps/d0lt-bot/.env
 # Optional: a GitHub token with repo read access, for private repos.
-# echo 'GITHUB_TOKEN="ghp_..."' >> .env
+# echo 'GITHUB_TOKEN="ghp_..."' >> apps/d0lt-bot/.env
 
 # Start the server.
 pnpm dev          # http://127.0.0.1:3583
@@ -70,15 +73,17 @@ pnpm dev          # http://127.0.0.1:3583
 pnpm connect
 ```
 
-Flue loads the project-root `.env` for `flue dev` and `flue connect`.
+Flue loads `apps/d0lt-bot/.env` for `flue dev` and `flue connect`.
 
 ## Development
 
+Run from the repo root; `turbo` runs the matching task in `apps/d0lt-bot`.
+
 ```bash
-pnpm typecheck      # tsc --noEmit
-pnpm lint           # oxlint --fix && oxfmt
+pnpm typecheck      # turbo run typecheck (tsc --noEmit)
+pnpm lint           # oxlint --fix && oxfmt (root-wide, one pass)
 pnpm format:check   # oxfmt --check (no writes)
-pnpm build          # flue build --target node
+pnpm build          # turbo run build (flue build --target node)
 ```
 
 ## Configuration
@@ -97,18 +102,25 @@ Sandbox).
 ## Project layout
 
 ```
-src/
-├─ agents/
-│  ├─ d0lt-bot.ts        # root router; owns the local() sandbox; route → flue connect
-│  └─ d0lt-bot.md        # routing instructions (delegate review vs test)
-├─ subagents/
-│  ├─ reviewer.ts(.md)    # PR review subagent profile + instructions
-│  └─ test-runner.ts(.md) # test runner subagent profile + instructions
-├─ tools/
-│  └─ fetch-repo.ts      # shared: validates URL → safe clone command
-└─ lib/
-   └─ github.ts          # URL parsing, ref validation, clone-script builder (shared)
-docs/plans/              # design document
+apps/d0lt-bot/             # the bot (Flue app)
+├─ src/
+│  ├─ agents/
+│  │  ├─ d0lt-bot.ts        # root router; owns the local() sandbox; route → flue connect
+│  │  └─ d0lt-bot.md        # routing instructions (delegate review vs test)
+│  ├─ subagents/
+│  │  ├─ reviewer.ts(.md)    # PR review subagent profile + instructions
+│  │  └─ test-runner.ts(.md) # test runner subagent profile + instructions
+│  ├─ tools/
+│  │  └─ fetch-repo.ts      # shared: validates URL → safe clone command
+│  └─ lib/
+│     └─ github.ts          # URL parsing, ref validation, clone-script builder (shared)
+├─ flue.config.ts
+├─ tsconfig.json           # extends ../../tsconfig.base.json
+└─ package.json
+packages/                  # shared packages (none yet)
+turbo.json                 # task pipeline (build / dev / typecheck)
+tsconfig.base.json         # shared TS compiler options
+docs/plans/                # design document
 ```
 
 ## How this differs from the eve original
