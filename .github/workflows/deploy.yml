@@ -40,8 +40,10 @@ jobs:
       # `deploy` = build:cf + `wrangler deploy`. wrangler builds the sandbox
       # container image (Docker is preinstalled on ubuntu-latest) and pushes it
       # to Cloudflare, so the API token needs Workers + Containers/Images write.
+      # `run` is required: `pnpm deploy` is a built-in command (prunes a package
+      # to a dir), so the bare form would shadow the package's deploy *script*.
       - name: Deploy to Cloudflare
-        run: pnpm --filter d0lt-bot deploy
+        run: pnpm --filter d0lt-bot run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
