@@ -75,6 +75,23 @@ pnpm deploy                              # build:cf + wrangler deploy
 pinned to the installed `@cloudflare/sandbox` version. Durable Object migrations are append-only —
 never reorder or rewrite deployed entries.
 
+### How the Cloudflare sandbox works
+
+- **Why a container.** The bot's work is real shell — `git clone`, detect the stack, install
+  deps, run tests. Workers have no filesystem or shell, so the deployed agent runs that work in a
+  [Cloudflare Sandbox](https://developers.cloudflare.com/sandbox) container (a `Sandbox` Durable
+  Object) instead of the host `local()` sandbox used locally.
+- **The image.** The `Dockerfile` is just `FROM docker.io/cloudflare/sandbox:<version>`. That base
+  image ships the control-plane server the SDK talks to plus `node`, `git`, `curl`, and a
+  `/workspace` working dir — which is why the agent's `cwd` is `/workspace` on Cloudflare. Add
+  `RUN` lines only if a test stack needs extra tooling. Docker is needed locally **only** at
+  `pnpm deploy` time, when wrangler builds and pushes the image.
+- **Private repos.** The `GITHUB_TOKEN` secret is injected into the container's environment (via
+  the sandbox's `setEnvVars`), so clones authenticate as `$GITHUB_TOKEN` at run time without the
+  token ever entering the model's context — the same contract as local dev.
+- **Not Cloudflare Shell.** This uses Cloudflare *Sandbox* (full Linux), not the `cloudflare-shell`
+  adapter, which exposes only a code tool and can't run `git`/install/test commands.
+
 ## Getting started
 
 This is a [Turborepo](https://turborepo.com) monorepo; the bot lives in
