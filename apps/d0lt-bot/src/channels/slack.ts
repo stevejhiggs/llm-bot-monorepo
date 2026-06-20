@@ -11,7 +11,14 @@
 import { dispatch } from "@flue/runtime";
 import { createSlackChannel } from "@flue/slack";
 import d0ltBot from "../agents/d0lt-bot.ts";
+import { channelEnabled } from "../lib/channel-flags.ts";
 import { planSlackEvent } from "../lib/slack-events.ts";
+
+// Opt-in via CHANNEL_SLACK_ENABLE. Flue discovers every channels/*.ts and requires a
+// valid `channel` export, so a disabled channel can't be omitted — instead it
+// constructs with a placeholder secret (no real SLACK_SIGNING_SECRET needed to boot)
+// and its handler ignores every delivery. Enabling it requires the real secret.
+const enabled = channelEnabled("slack");
 
 // d0lt-bot.ts imports `channel` (and the reply tool) back from this module. That
 // cycle is safe because every cross-module binding is read inside a deferred
@@ -21,9 +28,10 @@ import { planSlackEvent } from "../lib/slack-events.ts";
 // Only the `events` handler is configured, so only POST /events is mounted;
 // interactivity and slash-command routes are intentionally absent.
 export const channel = createSlackChannel({
-  signingSecret: process.env.SLACK_SIGNING_SECRET!,
+  signingSecret: enabled ? process.env.SLACK_SIGNING_SECRET! : "disabled",
 
   async events({ payload }) {
+    if (!enabled) return;
     const plan = planSlackEvent(payload);
     // Unhandled events return nothing → an empty 200, the fast ack Slack wants.
     // Handled work is dispatched durably and processed after we respond.

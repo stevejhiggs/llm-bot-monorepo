@@ -2,6 +2,7 @@ import { createAgent, type AgentRouteHandler, type ToolDefinition } from "@flue/
 import { resolveSandboxKind } from "../lib/sandbox.ts";
 import { channel as githubChannel } from "../channels/github.ts";
 import { channel as slackChannel } from "../channels/slack.ts";
+import { channelEnabled } from "../lib/channel-flags.ts";
 import { commentOnIssue } from "../lib/github-webhook.ts";
 import { replyInThread } from "../lib/slack-events.ts";
 import instructions from "./d0lt-bot.md" with { type: "markdown" };
@@ -32,15 +33,15 @@ function channelTools(id: string): ToolDefinition[] {
 export const description =
   "GitHub assistant: routes PR reviews and test runs to specialist subagents.";
 
-// Direct HTTP access is opt-in. The agent's public invocation surface
-// (POST/GET/HEAD /agents/d0lt-bot/:id) exists only when this module exports a `route`
-// function, so we export one only when ALLOW_HTTP_ACCESS is set. Unset (the default)
-// → no public HTTP surface at all (the endpoint 404s and is absent from openapi.json),
-// and the bot is reachable only through verified channel ingress (GitHub
-// /channels/github/webhook, Slack /channels/slack/events), which dispatch internally,
-// plus `flue connect` (private child-process IPC) for local dev. The handler is a
-// pass-through; gate it further (e.g. a bearer check) if HTTP callers need authz.
-export const route: AgentRouteHandler | undefined = process.env.ALLOW_HTTP_ACCESS
+// Direct HTTP access is opt-in via CHANNEL_HTTP_ENABLE. The agent's public invocation
+// surface (POST/GET/HEAD /agents/d0lt-bot/:id) exists only when this module exports a
+// `route` function, so we export one only when the flag is set. Unset (the default) →
+// no public HTTP surface at all (the endpoint 404s and is absent from openapi.json),
+// and the bot is reachable only through enabled channel ingress (GitHub/Slack), which
+// dispatch internally, plus `flue connect` (private child-process IPC) for local dev.
+// The handler is a pass-through; gate it further (e.g. a bearer check) if HTTP callers
+// need authz.
+export const route: AgentRouteHandler | undefined = channelEnabled("http")
   ? async (_c, next) => next()
   : undefined;
 

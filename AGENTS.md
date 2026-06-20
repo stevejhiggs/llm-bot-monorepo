@@ -73,10 +73,17 @@ landing on the same agent instance/conversation:
 3. **Slack channel** — Events API → `dispatch()`.
 
 The channels reach the agent via `dispatch()` (internal Durable Object delivery), not its HTTP
-route. The direct agent HTTP endpoint (`POST /agents/d0lt-bot/:id`) is **opt-in**: the module
-exports a `route` handler only when `ALLOW_HTTP_ACCESS` is set, so by default that endpoint 404s
-and the bot is reachable only through the verified channels and `flue connect`. The shipped
-handler is an unauthenticated pass-through — add an auth check in it before enabling in prod.
+route. **All three entry points are opt-in** via `CHANNEL_<NAME>_ENABLE` env vars
+(`CHANNEL_GITHUB_ENABLE`, `CHANNEL_SLACK_ENABLE`, `CHANNEL_HTTP_ENABLE`), read through
+`channelEnabled()` in `src/lib/channel-flags.ts`; unset (the default) means disabled:
+
+- **HTTP** — when disabled the agent exports no `route`, so `POST /agents/d0lt-bot/:id` 404s and is
+  absent from `openapi.json`. The shipped handler is an unauthenticated pass-through; add auth
+  before enabling in prod.
+- **GitHub / Slack** — Flue's file-based discovery requires each `channels/*.ts` to export a valid
+  `channel`, so a disabled channel can't be removed; it constructs with a placeholder secret (no
+  real secret needed to boot) and its handler ignores every delivery, leaving the route mounted but
+  inert. Enabling it requires the real secret (`createXChannel` throws on an empty one).
 
 The router owns the sandbox and delegates to two **subagents** (`reviewer`, `test_runner` under
 `src/subagents/`) via Flue's built-in `task` capability. Subagents never clone directly: the
@@ -110,9 +117,10 @@ matching outbound tool (chat ids parse as neither → no channel tool). Outbound
 message body/text from the model; the destination (issue/thread) is fixed at bind time from the
 verified delivery, so the model cannot redirect a post.
 
-To add a channel end to end: create the two files above, add a branch to `channelTools(id)`, add a
-"When the turn comes from <X>" section to `src/agents/d0lt-bot.md`, and document its secrets in
-`.env.example`, `.dev.vars`, and `README.md`.
+To add a channel end to end: create the two files above, gate the channel with
+`channelEnabled("<name>")` (placeholder secret + early-return when disabled), add a branch to
+`channelTools(id)`, add a "When the turn comes from <X>" section to `src/agents/d0lt-bot.md`, and
+document its enable flag + secrets in `.env.example`, `.dev.vars`, and `README.md`.
 
 ### Channel ⇄ agent import cycle
 
@@ -124,10 +132,11 @@ callback), never at module-eval time. Keep new cross-references deferred.
 ### Secrets and startup
 
 Channels are constructed at module load and `createGitHubChannel`/`createSlackChannel` throw on an
-empty secret — so with both channels present, the app needs **both** `GITHUB_WEBHOOK_SECRET` and
-`SLACK_SIGNING_SECRET` (plus the API tokens) to boot. On Cloudflare, secrets/vars are read via
-`process.env` (supported under the `nodejs_compat` flag + the recent `compatibility_date` in
-`wrangler.jsonc`). `GITHUB_TOKEN` is injected into the sandbox env and referenced by name as
+empty secret — but only an **enabled** channel passes its real secret (a disabled one constructs
+with a placeholder), so the app needs the secret for each channel you turn on, and nothing for the
+ones you leave off. On Cloudflare, secrets/vars are read via `process.env` (supported under the
+`nodejs_compat` flag + the recent `compatibility_date` in `wrangler.jsonc`). `GITHUB_TOKEN` is
+injected into the sandbox env and referenced by name as
 `$GITHUB_TOKEN` in the clone script — it never enters the model's context. See `.env.example` for
 the full list.
 
