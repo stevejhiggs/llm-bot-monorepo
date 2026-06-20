@@ -7,3 +7,5 @@ dist/
 *.log
 .flue-vite/
 .turbo/
+.dev.vars
+.dev.vars*

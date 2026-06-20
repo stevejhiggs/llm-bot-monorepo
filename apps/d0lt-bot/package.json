@@ -6,7 +6,10 @@
     "dev": "flue dev --target node",
     "build": "flue build --target node",
     "connect": "flue connect d0lt-bot local",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev:cf": "FLUE_SANDBOX=cloudflare flue dev --target cloudflare",
+    "build:cf": "FLUE_SANDBOX=cloudflare flue build --target cloudflare",
+    "deploy": "FLUE_SANDBOX=cloudflare flue build --target cloudflare && wrangler deploy --config dist/d0lt_bot/wrangler.json"
   },
   "dependencies": {
     "@cloudflare/sandbox": "^0.12.1",
