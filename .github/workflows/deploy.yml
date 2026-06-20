@@ -1,0 +1,42 @@
+name: Deploy
+
+# Auto-deploy to Cloudflare on merge to main. The `checks` job reuses the CI
+# workflow as a gate; `deploy` only runs if it passes. Also runnable manually
+# from the Actions tab (workflow_dispatch) for redeploys/rollbacks.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One production deploy at a time; don't cancel an in-flight deploy.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4 # version read from packageManager in package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `deploy` = build:cf + `wrangler deploy`. wrangler builds the sandbox
+      # container image (Docker is preinstalled on ubuntu-latest) and pushes it
+      # to Cloudflare, so the API token needs Workers + Containers/Images write.
+      - name: Deploy to Cloudflare
+        run: pnpm --filter d0lt-bot deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
