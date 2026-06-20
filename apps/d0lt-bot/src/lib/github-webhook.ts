@@ -1,7 +1,7 @@
 // Webhook decision logic and the outbound comment tool for the GitHub channel.
 // Kept separate from `channels/github.ts` (which wires these into the channel and
-// the agent) so the branching logic and the Octokit call are unit-testable in a
-// plain `node --test` run, without loading the agent graph or its markdown imports.
+// the agent) so the branching logic and the Octokit call are unit-testable with
+// Vitest, without loading the agent graph or its markdown imports.
 
 import { defineTool } from "@flue/runtime";
 import type { GitHubIssueRef, GitHubWebhookDelivery } from "@flue/github";

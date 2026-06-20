@@ -1,7 +1,6 @@
-import { strict as assert } from "node:assert";
-import { test } from "node:test";
 import type { GitHubWebhookDelivery } from "@flue/github";
 import { Octokit } from "@octokit/rest";
+import { expect, test } from "vitest";
 import { commentOnIssue, planDelivery } from "./github-webhook.ts";
 
 const PHRASE = "@d0lt-bot";
@@ -46,47 +45,47 @@ function pullRequestOpened(opts: { action?: string; number?: number } = {}): Git
 
 test("PR comment with the trigger phrase plans a PR review dispatch", () => {
   const plan = planDelivery(issueComment({ isPr: true, number: 7 }), PHRASE);
-  assert.ok(plan);
-  assert.deepEqual(plan.ref, { owner: "owner", repo: "repo", issueNumber: 7 });
-  assert.equal(plan.input.type, "github.issue_comment.created");
-  assert.equal(plan.input.deliveryId, "delivery-1");
-  assert.equal(plan.input.target.kind, "pr");
-  assert.equal(plan.input.target.url, "https://github.com/owner/repo/pull/7");
-  assert.equal(plan.input.instruction, `${PHRASE} review this`);
+  expect(plan).not.toBeNull();
+  expect(plan?.ref).toEqual({ owner: "owner", repo: "repo", issueNumber: 7 });
+  expect(plan?.input.type).toBe("github.issue_comment.created");
+  expect(plan?.input.deliveryId).toBe("delivery-1");
+  expect(plan?.input.target.kind).toBe("pr");
+  expect(plan?.input.target.url).toBe("https://github.com/owner/repo/pull/7");
+  expect(plan?.input.instruction).toBe(`${PHRASE} review this`);
 });
 
 test("plain-issue comment with the trigger phrase plans a repo dispatch", () => {
   const plan = planDelivery(issueComment({ isPr: false, number: 9 }), PHRASE);
-  assert.ok(plan);
-  assert.deepEqual(plan.ref, { owner: "owner", repo: "repo", issueNumber: 9 });
-  assert.equal(plan.input.target.kind, "repo");
-  assert.equal(plan.input.target.url, "https://github.com/owner/repo");
+  expect(plan).not.toBeNull();
+  expect(plan?.ref).toEqual({ owner: "owner", repo: "repo", issueNumber: 9 });
+  expect(plan?.input.target.kind).toBe("repo");
+  expect(plan?.input.target.url).toBe("https://github.com/owner/repo");
 });
 
 test("pull_request.opened plans an auto-review dispatch", () => {
   const plan = planDelivery(pullRequestOpened({ number: 42 }), PHRASE);
-  assert.ok(plan);
-  assert.deepEqual(plan.ref, { owner: "owner", repo: "repo", issueNumber: 42 });
-  assert.equal(plan.input.type, "github.pull_request.opened");
-  assert.equal(plan.input.target.kind, "pr");
-  assert.equal(plan.input.target.url, "https://github.com/owner/repo/pull/42");
-  assert.match(plan.input.instruction, /review/i);
+  expect(plan).not.toBeNull();
+  expect(plan?.ref).toEqual({ owner: "owner", repo: "repo", issueNumber: 42 });
+  expect(plan?.input.type).toBe("github.pull_request.opened");
+  expect(plan?.input.target.kind).toBe("pr");
+  expect(plan?.input.target.url).toBe("https://github.com/owner/repo/pull/42");
+  expect(plan?.input.instruction).toMatch(/review/i);
 });
 
 test("comment without the trigger phrase is ignored", () => {
-  assert.equal(planDelivery(issueComment({ body: "looks good to me" }), PHRASE), null);
+  expect(planDelivery(issueComment({ body: "looks good to me" }), PHRASE)).toBeNull();
 });
 
 test("comment from a bot account is ignored (loop prevention)", () => {
-  assert.equal(planDelivery(issueComment({ senderType: "Bot" }), PHRASE), null);
+  expect(planDelivery(issueComment({ senderType: "Bot" }), PHRASE)).toBeNull();
 });
 
 test("non-created comment actions are ignored", () => {
-  assert.equal(planDelivery(issueComment({ action: "edited" }), PHRASE), null);
+  expect(planDelivery(issueComment({ action: "edited" }), PHRASE)).toBeNull();
 });
 
 test("non-opened pull_request actions are ignored", () => {
-  assert.equal(planDelivery(pullRequestOpened({ action: "synchronize" }), PHRASE), null);
+  expect(planDelivery(pullRequestOpened({ action: "synchronize" }), PHRASE)).toBeNull();
 });
 
 test("unhandled events are ignored", () => {
@@ -95,12 +94,12 @@ test("unhandled events are ignored", () => {
     deliveryId: "d",
     payload: {},
   } as unknown as GitHubWebhookDelivery;
-  assert.equal(planDelivery(delivery, PHRASE), null);
+  expect(planDelivery(delivery, PHRASE)).toBeNull();
 });
 
 test("trigger-phrase match is case-insensitive", () => {
   const plan = planDelivery(issueComment({ isPr: true, body: "@D0LT-BOT please review" }), PHRASE);
-  assert.ok(plan);
+  expect(plan).not.toBeNull();
 });
 
 test("commentOnIssue posts to the bound issue and returns the comment id and url", async () => {
@@ -128,10 +127,10 @@ test("commentOnIssue posts to the bound issue and returns the comment id and url
   const tool = commentOnIssue({ owner: "owner", repo: "repo", issueNumber: 7 }, octokit);
   const result = JSON.parse(await tool.execute({ body: "Looks good." }));
 
-  assert.equal(result.commentId, 999);
-  assert.equal(result.url, "https://github.com/owner/repo/issues/7#issuecomment-999");
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].method, "POST");
-  assert.match(calls[0].url, /\/repos\/owner\/repo\/issues\/7\/comments$/);
-  assert.deepEqual(calls[0].body, { body: "Looks good." });
+  expect(result.commentId).toBe(999);
+  expect(result.url).toBe("https://github.com/owner/repo/issues/7#issuecomment-999");
+  expect(calls.length).toBe(1);
+  expect(calls[0].method).toBe("POST");
+  expect(calls[0].url).toMatch(/\/repos\/owner\/repo\/issues\/7\/comments$/);
+  expect(calls[0].body).toEqual({ body: "Looks good." });
 });

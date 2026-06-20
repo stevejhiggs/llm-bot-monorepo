@@ -1,11 +1,13 @@
 {
   "name": "d0lt-bot",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "flue dev --target node",
     "build": "flue build --target node",
     "connect": "flue connect d0lt-bot local",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "dev:cf": "FLUE_SANDBOX=cloudflare flue dev --target cloudflare",
     "build:cf": "FLUE_SANDBOX=cloudflare flue build --target cloudflare",
@@ -18,14 +20,15 @@
     "@flue/slack": "1.0.0-beta.1",
     "@octokit/rest": "^22.0.1",
     "@slack/web-api": "8.0.0-rc.1",
-    "agents": "^0.14.1",
+    "agents": "^0.16.2",
     "valibot": "^1.4.1"
   },
   "devDependencies": {
     "@flue/cli": "1.0.0-beta.1",
-    "@types/node": "24.x",
-    "typescript": "^6.0.3",
-    "wrangler": "^4.102.0"
+    "@types/node": "catalog:tooling",
+    "typescript": "catalog:tooling",
+    "vitest": "catalog:testing",
+    "wrangler": "^4.103.0"
   },
   "engines": {
     "node": "24.x"

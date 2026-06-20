@@ -8,18 +8,19 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "connect": "pnpm --filter d0lt-bot connect",
+    "test": "pnpm --filter d0lt-bot test",
     "lint": "oxlint --fix && oxfmt",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check"
   },
   "devDependencies": {
-    "@types/node": "24.x",
+    "@types/node": "catalog:tooling",
     "oxfmt": "^0.55.0",
     "oxlint": "^1.70.0",
     "oxlint-tsgolint": "^0.23.0",
     "turbo": "^2.9.18",
-    "typescript": "^6.0.3"
+    "typescript": "7.0.1-rc"
   },
   "engines": {
     "node": "24.x"

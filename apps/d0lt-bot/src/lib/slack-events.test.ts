@@ -1,7 +1,6 @@
-import { strict as assert } from "node:assert";
-import { test } from "node:test";
 import type { SlackEventsApiPayload } from "@flue/slack";
 import type { WebClient } from "@slack/web-api";
+import { expect, test } from "vitest";
 import { planSlackEvent, replyInThread } from "./slack-events.ts";
 
 // Minimal Events API payload builders. We populate only the fields planSlackEvent
@@ -52,46 +51,46 @@ function imMessage(
 
 test("app_mention plans a dispatch with the thread ref and text", () => {
   const plan = planSlackEvent(appMention({ text: "<@U0BOT> review it" }));
-  assert.ok(plan);
-  assert.deepEqual(plan.ref, { teamId: "T1", channelId: "C1", threadTs: "111.1" });
-  assert.equal(plan.input.type, "slack.app_mention");
-  assert.equal(plan.input.eventId, "Ev123");
-  assert.equal(plan.input.text, "<@U0BOT> review it");
+  expect(plan).not.toBeNull();
+  expect(plan?.ref).toEqual({ teamId: "T1", channelId: "C1", threadTs: "111.1" });
+  expect(plan?.input.type).toBe("slack.app_mention");
+  expect(plan?.input.eventId).toBe("Ev123");
+  expect(plan?.input.text).toBe("<@U0BOT> review it");
 });
 
 test("app_mention threadTs uses thread_ts when present", () => {
   const plan = planSlackEvent(appMention({ ts: "111.1", threadTs: "100.0" }));
-  assert.ok(plan);
-  assert.equal(plan.ref.threadTs, "100.0");
+  expect(plan).not.toBeNull();
+  expect(plan?.ref.threadTs).toBe("100.0");
 });
 
 test("a direct message plans a dispatch", () => {
   const plan = planSlackEvent(imMessage({ text: "run tests for https://github.com/o/r" }));
-  assert.ok(plan);
-  assert.deepEqual(plan.ref, { teamId: "T1", channelId: "D1", threadTs: "222.2" });
-  assert.equal(plan.input.type, "slack.message.im");
-  assert.equal(plan.input.text, "run tests for https://github.com/o/r");
+  expect(plan).not.toBeNull();
+  expect(plan?.ref).toEqual({ teamId: "T1", channelId: "D1", threadTs: "222.2" });
+  expect(plan?.input.type).toBe("slack.message.im");
+  expect(plan?.input.text).toBe("run tests for https://github.com/o/r");
 });
 
 test("a message from a bot is ignored (loop prevention)", () => {
-  assert.equal(planSlackEvent(imMessage({ botId: "B1" })), null);
+  expect(planSlackEvent(imMessage({ botId: "B1" }))).toBeNull();
 });
 
 test("a message subtype (edit/system) is ignored", () => {
-  assert.equal(planSlackEvent(imMessage({ subtype: "message_changed" })), null);
+  expect(planSlackEvent(imMessage({ subtype: "message_changed" }))).toBeNull();
 });
 
 test("a non-IM channel message without a mention is ignored", () => {
-  assert.equal(planSlackEvent(imMessage({ channelType: "channel" })), null);
+  expect(planSlackEvent(imMessage({ channelType: "channel" }))).toBeNull();
 });
 
 test("a non-event_callback payload (app_rate_limited) is ignored", () => {
   const payload = { type: "app_rate_limited", team_id: "T1" } as unknown as SlackEventsApiPayload;
-  assert.equal(planSlackEvent(payload), null);
+  expect(planSlackEvent(payload)).toBeNull();
 });
 
 test("an unhandled event type is ignored", () => {
-  assert.equal(planSlackEvent(eventCallback({ type: "reaction_added" })), null);
+  expect(planSlackEvent(eventCallback({ type: "reaction_added" }))).toBeNull();
 });
 
 test("replyInThread posts to the bound thread and returns channel and ts", async () => {
@@ -108,8 +107,8 @@ test("replyInThread posts to the bound thread and returns channel and ts", async
   const tool = replyInThread({ channelId: "D1", threadTs: "222.2" }, fakeClient);
   const result = JSON.parse(await tool.execute({ text: "Tests passed." }));
 
-  assert.equal(result.channel, "D1");
-  assert.equal(result.ts, "333.3");
-  assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0], { channel: "D1", thread_ts: "222.2", text: "Tests passed." });
+  expect(result.channel).toBe("D1");
+  expect(result.ts).toBe("333.3");
+  expect(calls.length).toBe(1);
+  expect(calls[0]).toEqual({ channel: "D1", thread_ts: "222.2", text: "Tests passed." });
 });
