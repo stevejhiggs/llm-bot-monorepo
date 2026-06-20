@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "@cloudflare/sandbox": "^0.12.1",
+    "@flue/github": "1.0.0-beta.1",
     "@flue/runtime": "1.0.0-beta.2",
+    "@octokit/rest": "^22.0.1",
     "agents": "^0.14.1",
     "valibot": "^1.4.1"
   },
