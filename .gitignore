@@ -5,7 +5,8 @@ dist/
 .env.*
 !.env.example
 *.log
-.flue-vite/
+.flue-vite*
+.wrangler/
 .turbo/
 .dev.vars
 .dev.vars*
