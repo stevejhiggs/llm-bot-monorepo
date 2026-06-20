@@ -294,15 +294,15 @@ In `apps/d0lt-bot/package.json` `scripts`, add:
 ```json
 "dev:cf": "FLUE_SANDBOX=cloudflare flue dev --target cloudflare",
 "build:cf": "FLUE_SANDBOX=cloudflare flue build --target cloudflare",
-"deploy": "FLUE_SANDBOX=cloudflare flue build --target cloudflare && wrangler deploy --config dist/d0lt-bot/wrangler.json"
+"deploy": "FLUE_SANDBOX=cloudflare flue build --target cloudflare && wrangler deploy --config dist/d0lt_bot/wrangler.json"
 ```
 
 - [ ] **Step 6: Build and dry-run**
 
 Run: `cd apps/d0lt-bot && pnpm build:cf`
-Expected: build succeeds; writes `dist/d0lt-bot/wrangler.json`.
+Expected: build succeeds; writes `dist/d0lt_bot/wrangler.json`.
 
-Run: `cd apps/d0lt-bot && npx wrangler deploy --dry-run --config dist/d0lt-bot/wrangler.json`
+Run: `cd apps/d0lt-bot && npx wrangler deploy --dry-run --config dist/d0lt_bot/wrangler.json`
 Expected: dry run succeeds — bindings (`Sandbox`, generated `FLUE_*`), migrations, and container all validate, and **no node-only module** (`@flue/runtime/node`) is reported in the Worker bundle. If it complains about `@flue/runtime/node` being pulled in, see Task 4 (the cloudflare branch + dynamic import keeps it out); re-run after Task 4.
 
 - [ ] **Step 7: Commit**
@@ -395,7 +395,7 @@ Run: `cd apps/d0lt-bot && pnpm typecheck && pnpm dev` then `pnpm connect` in ano
 
 - [ ] **Step 5: Verify the Cloudflare build/dry-run is clean**
 
-Run: `cd apps/d0lt-bot && pnpm build:cf && npx wrangler deploy --dry-run --config dist/d0lt-bot/wrangler.json`
+Run: `cd apps/d0lt-bot && pnpm build:cf && npx wrangler deploy --dry-run --config dist/d0lt_bot/wrangler.json`
 Expected: both succeed; bundle validates with the container `Sandbox`; no `@flue/runtime/node` pulled into the Worker bundle.
 
 > If the dry-run still reports `@flue/runtime/node` in the Worker bundle, the runtime env-var branch isn't being tree-shaken. Fix: replace the runtime `kind` check that guards the dynamic imports with a build-time condition the bundler can evaluate — e.g. gate each `import()` on `import.meta.env.MODE`/a Vite `define`, or alias `sandbox.node.ts` to an empty stub for the cloudflare build in the Vite config. Re-run until the node module is absent.

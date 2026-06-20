@@ -10,8 +10,12 @@ to Flue. Point it at a pull request or a repository in chat and it does the work
 - **Run a repository's tests** — clones the code, detects the stack, installs dependencies,
   runs the tests, and reports a pass/fail result with the relevant output.
 
+You can drive it two ways: interactively over chat (`flue connect`), or from GitHub itself —
+the bot reacts to pull-request/issue comments and newly opened PRs and posts its results back
+as GitHub comments (see [GitHub integration](#github-integration)).
+
 Note: like the original, this is not a full review system — it's a test of how these patterns
-map onto Flue. Posting results back to GitHub is not wired up.
+map onto Flue.
 
 ## How it works
 
@@ -49,6 +53,89 @@ Start the server (`pnpm dev`), then chat with the agent via `pnpm connect`:
 - `Review https://github.com/owner/repo/pull/123`
 - `Run the tests for https://github.com/owner/repo`
 - `Run the unit tests for https://github.com/owner/repo/tree/some-branch`
+
+## GitHub integration
+
+The bot can also be driven from GitHub directly. A [Flue GitHub channel](https://flueframework.com/docs/ecosystem/channels/github/)
+in [`apps/d0lt-bot/src/channels/github.ts`](apps/d0lt-bot/src/channels/github.ts) receives verified
+webhook deliveries and dispatches them to the same router agent; the agent then posts its result
+back as a GitHub comment using a `comment_on_github_issue` tool bound to that issue/PR. The
+webhook-handling logic and the comment tool live in
+[`apps/d0lt-bot/src/lib/github-webhook.ts`](apps/d0lt-bot/src/lib/github-webhook.ts) (unit-tested
+in `github-webhook.test.ts`).
+
+What triggers a run:
+
+- **A comment on a PR** containing the trigger phrase (default `@d0lt-bot`, set
+  `GITHUB_TRIGGER_PHRASE` to change it) → review the PR, or run its tests if the comment asks.
+- **A comment on a plain issue** containing the trigger phrase → run the tests for that repo.
+- **A newly opened PR** (`pull_request.opened`) → an automatic review, no phrase needed.
+
+Comments authored by bot accounts are ignored, so the bot never reacts to its own posts.
+
+### Setup
+
+Two secrets, with different jobs: `GITHUB_WEBHOOK_SECRET` verifies inbound deliveries, and
+`GITHUB_TOKEN` authenticates the outbound comments (and private-repo clones). Set them the same
+way as `ANTHROPIC_API_KEY` — `.dev.vars` locally, `wrangler secret put` when deployed.
+
+Then create a webhook on the repo (or org) pointing at the deployed app:
+
+- **Payload URL:** `https://<your-app>/channels/github/webhook`
+- **Content type:** `application/json` (form-encoded deliveries are rejected before verification)
+- **Secret:** the same value as `GITHUB_WEBHOOK_SECRET`
+- **Events:** *Issue comments* and *Pull requests* (the minimum this bot acts on)
+
+GitHub expects a `2xx` within ten seconds and does not auto-retry, so the channel acks
+immediately and processes the work asynchronously on the agent instance. Deliveries are not
+deduplicated by `deliveryId` (GitHub doesn't auto-retry, and comments on the same PR already
+serialize on one instance); the id is threaded through so dedup can be added if needed.
+
+## Deploying to Cloudflare
+
+The same agent runs on two targets. Locally it uses the node `local()` sandbox; deployed,
+it runs shell work in a Cloudflare Sandbox **container** (`@cloudflare/sandbox`). The sandbox
+is chosen by the `FLUE_SANDBOX` env var, set automatically by the `*:cf` scripts.
+
+Local Cloudflare dev (reads `apps/d0lt-bot/.dev.vars`):
+
+```bash
+pnpm --filter d0lt-bot dev:cf
+```
+
+Deploy (requires `wrangler login`):
+
+```bash
+cd apps/d0lt-bot
+wrangler secret put ANTHROPIC_API_KEY
+wrangler secret put GITHUB_TOKEN          # optional, for private repos + posting comments
+wrangler secret put GITHUB_WEBHOOK_SECRET # to receive GitHub webhooks (see GitHub integration)
+pnpm deploy                               # build:cf + wrangler deploy
+```
+
+The GitHub channel's Octokit client runs on Cloudflare under the `nodejs_compat` flag already set
+in `wrangler.jsonc`.
+
+`wrangler.jsonc` and `Dockerfile` live in `apps/d0lt-bot/`. The `Dockerfile` base-image tag is
+pinned to the installed `@cloudflare/sandbox` version. Durable Object migrations are append-only —
+never reorder or rewrite deployed entries.
+
+### How the Cloudflare sandbox works
+
+- **Why a container.** The bot's work is real shell — `git clone`, detect the stack, install
+  deps, run tests. Workers have no filesystem or shell, so the deployed agent runs that work in a
+  [Cloudflare Sandbox](https://developers.cloudflare.com/sandbox) container (a `Sandbox` Durable
+  Object) instead of the host `local()` sandbox used locally.
+- **The image.** The `Dockerfile` is just `FROM docker.io/cloudflare/sandbox:<version>`. That base
+  image ships the control-plane server the SDK talks to plus `node`, `git`, `curl`, and a
+  `/workspace` working dir — which is why the agent's `cwd` is `/workspace` on Cloudflare. Add
+  `RUN` lines only if a test stack needs extra tooling. Docker is needed locally **only** at
+  `pnpm deploy` time, when wrangler builds and pushes the image.
+- **Private repos.** The `GITHUB_TOKEN` secret is injected into the container's environment (via
+  the sandbox's `setEnvVars`), so clones authenticate as `$GITHUB_TOKEN` at run time without the
+  token ever entering the model's context — the same contract as local dev.
+- **Not Cloudflare Shell.** This uses Cloudflare *Sandbox* (full Linux), not the `cloudflare-shell`
+  adapter, which exposes only a code tool and can't run `git`/install/test commands.
 
 ## Getting started
 

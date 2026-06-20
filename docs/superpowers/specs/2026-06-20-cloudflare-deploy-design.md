@@ -137,8 +137,8 @@ flue dev --target cloudflare      # reads .dev.vars; FLUE_SANDBOX=cloudflare
 wrangler secret put ANTHROPIC_API_KEY
 wrangler secret put GITHUB_TOKEN          # optional, for private repos
 flue build --target cloudflare
-wrangler deploy --dry-run --config dist/d0lt-bot/wrangler.json
-wrangler deploy --config dist/d0lt-bot/wrangler.json
+wrangler deploy --dry-run --config dist/d0lt_bot/wrangler.json
+wrangler deploy --config dist/d0lt_bot/wrangler.json
 ```
 
 ## Testing / validation
