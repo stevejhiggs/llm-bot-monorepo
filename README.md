@@ -50,6 +50,31 @@ Start the server (`pnpm dev`), then chat with the agent via `pnpm connect`:
 - `Run the tests for https://github.com/owner/repo`
 - `Run the unit tests for https://github.com/owner/repo/tree/some-branch`
 
+## Deploying to Cloudflare
+
+The same agent runs on two targets. Locally it uses the node `local()` sandbox; deployed,
+it runs shell work in a Cloudflare Sandbox **container** (`@cloudflare/sandbox`). The sandbox
+is chosen by the `FLUE_SANDBOX` env var, set automatically by the `*:cf` scripts.
+
+Local Cloudflare dev (reads `apps/d0lt-bot/.dev.vars`):
+
+```bash
+pnpm --filter d0lt-bot dev:cf
+```
+
+Deploy (requires `wrangler login`):
+
+```bash
+cd apps/d0lt-bot
+wrangler secret put ANTHROPIC_API_KEY
+wrangler secret put GITHUB_TOKEN        # optional, for private repos
+pnpm deploy                              # build:cf + wrangler deploy
+```
+
+`wrangler.jsonc` and `Dockerfile` live in `apps/d0lt-bot/`. The `Dockerfile` base-image tag is
+pinned to the installed `@cloudflare/sandbox` version. Durable Object migrations are append-only —
+never reorder or rewrite deployed entries.
+
 ## Getting started
 
 This is a [Turborepo](https://turborepo.com) monorepo; the bot lives in
