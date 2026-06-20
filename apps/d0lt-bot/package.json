@@ -24,7 +24,7 @@
   "devDependencies": {
     "@flue/cli": "1.0.0-beta.1",
     "@types/node": "24.x",
-    "typescript": "^6.0.3",
+    "typescript": "7.0.1-rc",
     "wrangler": "^4.102.0"
   },
   "engines": {
