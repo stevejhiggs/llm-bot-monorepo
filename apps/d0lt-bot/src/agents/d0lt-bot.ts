@@ -1,22 +1,32 @@
-import { createAgent, type AgentRouteHandler } from "@flue/runtime";
+import { createAgent, type AgentRouteHandler, type ToolDefinition } from "@flue/runtime";
 import { resolveSandboxKind } from "../lib/sandbox.ts";
-import { channel } from "../channels/github.ts";
+import { channel as githubChannel } from "../channels/github.ts";
+import { channel as slackChannel } from "../channels/slack.ts";
 import { commentOnIssue } from "../lib/github-webhook.ts";
+import { replyInThread } from "../lib/slack-events.ts";
 import instructions from "./d0lt-bot.md" with { type: "markdown" };
 import reviewer from "../subagents/reviewer.ts";
 import testRunner from "../subagents/test-runner.ts";
 
-// When a turn arrives from the GitHub channel, the instance id is the channel's
-// conversation key and parses back to the bound issue/PR — so the agent gets a
-// comment tool fixed to that thread. Direct chat ids (e.g. "local") aren't keys
-// and throw, leaving chat sessions with no GitHub tool. Read inside the deferred
-// initializer to keep the channel ⇄ agent import cycle safe.
-function githubTools(id: string) {
+// A turn can arrive from chat (id "local"), from the GitHub channel, or from the
+// Slack channel. For a channel turn, the instance id is that channel's conversation
+// key and parses back to its bound destination — so the agent gets an outbound tool
+// fixed to that issue/PR or thread. Chat ids aren't keys and every parse throws,
+// leaving chat sessions with no channel tool. Read inside the deferred initializer
+// to keep the channel ⇄ agent import cycles safe.
+function channelTools(id: string): ToolDefinition[] {
   try {
-    return [commentOnIssue(channel.parseConversationKey(id))];
+    return [commentOnIssue(githubChannel.parseConversationKey(id))];
   } catch {
-    return [];
+    // not a GitHub conversation key
   }
+  try {
+    const { channelId, threadTs } = slackChannel.parseConversationKey(id);
+    return [replyInThread({ channelId, threadTs })];
+  } catch {
+    // not a Slack conversation key
+  }
+  return [];
 }
 
 export const description =
@@ -51,6 +61,6 @@ export default createAgent(async ({ id, env }) => {
     sandbox,
     cwd,
     subagents: [reviewer, testRunner],
-    tools: githubTools(id),
+    tools: channelTools(id),
   };
 });

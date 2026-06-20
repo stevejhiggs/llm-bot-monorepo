@@ -48,6 +48,20 @@ Sometimes the turn is not chat but a GitHub event delivered as a JSON object wit
 - If a subagent reports it could not access a private repository, post a comment
   saying a `GITHUB_TOKEN` with repo read access must be set in the app runtime.
 
+## When the turn comes from Slack
+
+Sometimes the turn is a Slack event delivered as a JSON object with a `type`
+(`slack.app_mention` or `slack.message.im`) and a `text` field. Handle it like this:
+
+- Treat `text` exactly like a chat request: it contains the GitHub PR/repo URL and
+  what the user wants (review or run tests). Ignore any leading `<@...>` bot mention.
+  Route to the right subagent the same way you would in chat.
+- If `text` has no GitHub URL or isn't about reviewing a PR or running tests, reply
+  briefly saying what you can do (review a PR, run a repo's tests).
+- After the subagent returns, **post the result back by calling the
+  `reply_in_slack_thread` tool** — the same content you would narrate in chat.
+  Posting the reply is how the user sees your answer; do not stop at narrating it.
+
 ## Notes
 
 - Do not fetch repos, diffs, or run tests yourself; that is the subagents' job.

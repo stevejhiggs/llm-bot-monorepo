@@ -91,6 +91,41 @@ immediately and processes the work asynchronously on the agent instance. Deliver
 deduplicated by `deliveryId` (GitHub doesn't auto-retry, and comments on the same PR already
 serialize on one instance); the id is threaded through so dedup can be added if needed.
 
+## Slack integration
+
+The bot can also be driven from Slack. A [Flue Slack channel](https://flueframework.com/docs/ecosystem/channels/slack/)
+in [`apps/d0lt-bot/src/channels/slack.ts`](apps/d0lt-bot/src/channels/slack.ts) receives verified
+Events API deliveries and dispatches them to the same router agent; the agent replies in the
+Slack thread using a `reply_in_slack_thread` tool bound to that thread. The event-handling
+logic and the reply tool live in
+[`apps/d0lt-bot/src/lib/slack-events.ts`](apps/d0lt-bot/src/lib/slack-events.ts) (unit-tested in
+`slack-events.test.ts`).
+
+What triggers a run:
+
+- **An @-mention** (`app_mention`) in a channel or thread — e.g. `@d0lt-bot review
+  https://github.com/owner/repo/pull/1`.
+- **A direct message** to the bot (`message` with `channel_type: im`).
+
+In both cases the message text is treated like a chat request (a GitHub URL + what to do), and
+the result is posted back in-thread. Messages from bots and edited/system messages are ignored.
+
+### Setup
+
+Two secrets, with different jobs: `SLACK_SIGNING_SECRET` verifies inbound requests, and
+`SLACK_BOT_TOKEN` (the bot user OAuth token, `xoxb-…`) authenticates outbound replies. Set them
+the same way as `ANTHROPIC_API_KEY` — `.dev.vars` locally, `wrangler secret put` when deployed.
+
+In your Slack app config:
+
+- **Event Subscriptions → Request URL:** `https://<your-app>/channels/slack/events`
+- **Subscribe to bot events:** `app_mention` and `message.im`
+- **OAuth scopes:** `app_mentions:read`, `im:history`, and `chat:write`
+
+Slack expects a fast `2xx` and retries on timeout/non-2xx, so the channel acks immediately and
+processes the work asynchronously. Events API retries are not deduplicated (messages in the same
+thread serialize on one instance).
+
 ## Deploying to Cloudflare
 
 The same agent runs on two targets. Locally it uses the node `local()` sandbox; deployed,
@@ -110,10 +145,13 @@ cd apps/d0lt-bot
 wrangler secret put ANTHROPIC_API_KEY
 wrangler secret put GITHUB_TOKEN          # optional, for private repos + posting comments
 wrangler secret put GITHUB_WEBHOOK_SECRET # to receive GitHub webhooks (see GitHub integration)
+wrangler secret put SLACK_SIGNING_SECRET  # to receive Slack events (see Slack integration)
+wrangler secret put SLACK_BOT_TOKEN       # for the Slack channel to post replies
 pnpm deploy                               # build:cf + wrangler deploy
 ```
 
-The GitHub channel's Octokit client runs on Cloudflare under the `nodejs_compat` flag already set
+The GitHub channel's Octokit client and the Slack channel's `@slack/web-api` client both run on
+Cloudflare under the `nodejs_compat` flag already set
 in `wrangler.jsonc`.
 
 `wrangler.jsonc` and `Dockerfile` live in `apps/d0lt-bot/`. The `Dockerfile` base-image tag is
