@@ -16,9 +16,9 @@ onlyBuiltDependencies:
   - workerd
 
 catalogs:
-  tooling: 
-   "@types/node": 24.13.2
-   typescript: 7.0.1-rc
+  tooling:
+    "@types/node": 24.13.2
+    typescript: 7.0.1-rc
 
   testing:
     vitest: ^4.1.9
