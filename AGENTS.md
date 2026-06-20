@@ -68,9 +68,15 @@ not resolve without the Flue plugin — that is why testable logic lives in `lib
 A single **router agent** (`apps/d0lt-bot/src/agents/d0lt-bot.ts`) is reached three ways, all
 landing on the same agent instance/conversation:
 
-1. **Chat** — `flue connect` (instance id `local`).
+1. **Chat** — `flue connect` (instance id `local`); private child-process IPC, no HTTP.
 2. **GitHub channel** — webhooks → `dispatch()`.
 3. **Slack channel** — Events API → `dispatch()`.
+
+The channels reach the agent via `dispatch()` (internal Durable Object delivery), not its HTTP
+route. The direct agent HTTP endpoint (`POST /agents/d0lt-bot/:id`) is **opt-in**: the module
+exports a `route` handler only when `ALLOW_HTTP_ACCESS` is set, so by default that endpoint 404s
+and the bot is reachable only through the verified channels and `flue connect`. The shipped
+handler is an unauthenticated pass-through — add an auth check in it before enabling in prod.
 
 The router owns the sandbox and delegates to two **subagents** (`reviewer`, `test_runner` under
 `src/subagents/`) via Flue's built-in `task` capability. Subagents never clone directly: the
