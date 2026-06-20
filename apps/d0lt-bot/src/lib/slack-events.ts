@@ -1,7 +1,7 @@
 // Slack Events API decision logic and the outbound reply tool.
 // Kept separate from `channels/slack.ts` (which wires these into the channel and
-// the agent) so the branching logic and the Web API call are unit-testable in a
-// plain `node --test` run, without loading the agent graph or its markdown imports.
+// the agent) so the branching logic and the Web API call are unit-testable with
+// Vitest, without loading the agent graph or its markdown imports.
 
 import { defineTool } from "@flue/runtime";
 import type { SlackEventsApiPayload, SlackThreadRef } from "@flue/slack";

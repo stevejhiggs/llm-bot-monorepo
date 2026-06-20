@@ -11,7 +11,8 @@ tests inside a sandbox, and can be driven from chat, GitHub comments, or Slack.
 
 - **Monorepo:** Turborepo. The only app is `apps/d0lt-bot`; root scripts fan out via `turbo`.
 - **Stack:** TypeScript (ESM, `NodeNext`), Node 24, pnpm 11. Flue runtime + CLI (`@flue/*`,
-  currently `1.0.0-beta`). Lint/format with oxlint + oxfmt. Deploys to Node or Cloudflare Workers.
+  currently `1.0.0-beta`). Tests with Vitest; lint/format with oxlint + oxfmt. Deploys to Node or
+  Cloudflare Workers.
 
 ## Setup commands
 
@@ -33,18 +34,18 @@ Run from the repo root unless noted.
 
 ## Testing instructions
 
-There is **no `test` script**. Tests use the built-in Node test runner directly on `.ts` files
-(Node 24 strips types natively). Test files are colocated as `*.test.ts` under `src/`.
+Tests run on **Vitest**. Test files are colocated as `*.test.ts` under `src/`.
 
-- Run all tests: `cd apps/d0lt-bot && node --test 'src/**/*.test.ts'`
-- Run one file: `node --test apps/d0lt-bot/src/lib/slack-events.test.ts`
-- Focus a single test: append `--test-name-pattern '<substring>'`.
+- Run all tests: `pnpm test` (root, delegates to the app) or `pnpm --filter d0lt-bot test`.
+- Watch mode: `pnpm --filter d0lt-bot test:watch`.
+- Run one file: `pnpm --filter d0lt-bot test src/lib/slack-events.test.ts`.
+- Focus by name: `pnpm --filter d0lt-bot test -- -t '<substring>'`.
 
 Tests are pure and offline — no network, no live Flue runtime. Channel logic is tested by driving
 the pure `plan*()` functions directly and invoking the outbound tools with an **injected fake
 client** (Octokit/WebClient). Follow that pattern for new channels; do not require the agent graph
-in a test (the agent imports markdown via `with { type: "markdown" }`, which the bare Node loader
-cannot resolve — that is the reason testable logic lives in `lib/`, not `channels/`).
+in a test (the agent imports markdown via `with { type: "markdown" }`, which Vitest's loader does
+not resolve without the Flue plugin — that is why testable logic lives in `lib/`, not `channels/`).
 
 ## Code style
 
@@ -56,8 +57,7 @@ cannot resolve — that is the reason testable logic lives in `lib/`, not `chann
 - Lint/format: `pnpm lint` runs `oxlint --fix && oxfmt` (writes fixes); `pnpm format:check` is the
   read-only gate. **oxlint and oxfmt have separate ignore configs** (`.oxlintrc.json` and
   `.oxfmtrc.json`) — both ignore `.agents/**`; keep new ignores in sync across both files. oxlint
-  runs type-aware; `typescript/no-floating-promises` is disabled for `**/*.test.ts` (top-level
-  `node:test` `test()` calls are intentionally fire-and-forget).
+  runs type-aware.
 - Keep comments at the density of surrounding code; the codebase documents *why* (security/safety
   contracts) more than *what*.
 
@@ -140,7 +140,7 @@ the full list.
 
 ## Pull request guidelines
 
-- Before committing, run `pnpm typecheck`, the `node --test` suite, and `pnpm lint`. For channel or
+- Before committing, run `pnpm typecheck`, `pnpm test`, and `pnpm lint`. For channel or
   sandbox changes also run **both** `pnpm build` and `pnpm --filter d0lt-bot build:cf` — channel
   discovery and the workerd bundle only fail at build time.
 - Commit messages follow Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`).

@@ -8,6 +8,7 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "connect": "pnpm --filter d0lt-bot connect",
+    "test": "pnpm --filter d0lt-bot test",
     "lint": "oxlint --fix && oxfmt",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
