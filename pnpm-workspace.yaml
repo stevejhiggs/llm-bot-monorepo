@@ -5,6 +5,9 @@ packages:
 allowBuilds:
   "@google/genai": true
   "@mongodb-js/zstd": true
+  # postinstall is only a funding banner; we intentionally don't run it. Set
+  # explicitly so CI doesn't fail on an unapproved ignored build script.
+  core-js-pure: false
   esbuild: true
   node-liblzma: true
   protobufjs: true

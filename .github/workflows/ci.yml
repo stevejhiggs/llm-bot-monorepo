@@ -1,0 +1,51 @@
+name: CI
+
+# Runs on every PR into main, and is reused by the deploy workflow as the
+# pre-deploy gate (workflow_call). Keep the checks here in sync with the
+# pre-commit hook and the "before committing" list in AGENTS.md.
+on:
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6 # version read from packageManager in package.json
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # node-liblzma (transitive via @flue/runtime → just-bash) builds from
+      # source and needs the liblzma headers; the runner doesn't ship them.
+      - name: Install native build deps
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends liblzma-dev
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      # Read-only lint/format — never the --fix variants, which rewrite files.
+      - name: Lint
+        run: pnpm exec oxlint
+      - name: Format check
+        run: pnpm format:check
+
+      # Channel discovery and the workerd bundle only fail at build time, so
+      # build the Cloudflare target here (no Docker needed — the container
+      # image is only built later, at `wrangler deploy`).
+      - name: Build (Cloudflare target)
+        run: pnpm --filter d0lt-bot build:cf
