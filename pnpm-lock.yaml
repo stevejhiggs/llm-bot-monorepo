@@ -38,9 +38,15 @@ importers:
       '@flue/runtime':
         specifier: 1.0.0-beta.2
         version: 1.0.0-beta.2(@cfworker/json-schema@4.1.1)(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(typebox@1.1.38)(typescript@6.0.3)(ws@8.21.0)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@flue/slack':
+        specifier: 1.0.0-beta.1
+        version: 1.0.0-beta.1
       '@octokit/rest':
         specifier: ^22.0.1
         version: 22.0.1
+      '@slack/web-api':
+        specifier: 8.0.0-rc.1
+        version: 8.0.0-rc.1
       agents:
         specifier: ^0.14.1
         version: 0.14.5(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@cloudflare/workers-types@4.20260619.1)(ai@6.0.208(zod@4.4.3))(react@19.2.7)(rolldown@1.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(yaml@2.9.0))(zod@4.4.3)
@@ -606,6 +612,10 @@ packages:
 
   '@flue/sdk@1.0.0-beta.1':
     resolution: {integrity: sha512-61VS3lcPey8ZHLGC6lk94yzuNxSHqaROqmgrswnoH2E/1ILR+ZYoLmKYTbQuOi0lulBl/ykh1WlvTQztFg2/nA==}
+
+  '@flue/slack@1.0.0-beta.1':
+    resolution: {integrity: sha512-fpzIEn65i411o4VTrdP35TIh7g3EUUKKBprpBm/o4VR0YJ0xFm2no3vszhM+AgsI5DMXDSBcW5gLZ6WPzojLww==}
+    engines: {node: '>=22.19.0'}
 
   '@google/genai@1.52.0':
     resolution: {integrity: sha512-gwSvbpiN/17O9TbsqSsE/OzZcpv5Fo4RQjdngGgogtuB9RsyJ8ZHhX5KjHj1bp5N9snN2eK8LDGXSaWW2hof8Q==}
@@ -1344,6 +1354,18 @@ packages:
     resolution: {integrity: sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw==}
     engines: {node: '>=18'}
 
+  '@slack/logger@5.0.0-rc.1':
+    resolution: {integrity: sha512-3vO8zNGvk8n8tXpAzhIz1u/fHjhsLxGMhlZqzJEa3FxlXAe2lsY3qn8XBgKYEG2LmGP6ZWWmDq7vAPr2gZe2CQ==}
+    engines: {node: '>= 20', npm: '>=9.6.4'}
+
+  '@slack/types@3.0.0-rc.1':
+    resolution: {integrity: sha512-xJZm26o5YK95OdM8BliTE+LijNhMGAwLWWpSpfnrPno4DyLBthNAjC7SG/9Ow2gB7oXCeYadpF/nzlYz7XaATg==}
+    engines: {node: '>= 20', npm: '>=9.6.4'}
+
+  '@slack/web-api@8.0.0-rc.1':
+    resolution: {integrity: sha512-ZFJCYoAq0kC4pUe3V41YUOVvG/mceZ1yCcFMRCkYNu5joEuzkhKQpU4XfD2LnkJenWKwW6mg9J5KbBDMRCxCjg==}
+    engines: {node: '>= 20', npm: '>=9.6.4'}
+
   '@smithy/core@3.25.1':
     resolution: {integrity: sha512-zpDbpXBCBsxfLtG2GEUyfgvHvSFrw5CwDZSNzL0v52gx/c3oPlPbm+7W7num8xs6vyiUBn+bvYPHcQDOXZynCQ==}
     engines: {node: '>=18.0.0'}
@@ -1793,6 +1815,12 @@ packages:
 
   event-target-polyfill@0.0.4:
     resolution: {integrity: sha512-Gs6RLjzlLRdT8X9ZipJdIZI/Y6/HhRLyq9RdDlCsnpxr/+Nn6bU2EFGuC94GjxqhM+Nmij2Vcq98yoHrU8uNFQ==}
+
+  eventemitter3@4.0.7:
+    resolution: {integrity: sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==}
+
+  eventemitter3@5.0.4:
+    resolution: {integrity: sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw==}
 
   eventsource-parser@3.1.0:
     resolution: {integrity: sha512-kJezFj9YFAMLeORyi7aCLxLbD5/qWMQnoMVlVPyHIll7lgRJCc3JVln9Vgl9nwQi0YkMnhdGTMNn7CkRRAptMg==}
@@ -2317,8 +2345,20 @@ packages:
       vite-plus:
         optional: true
 
+  p-finally@1.0.0:
+    resolution: {integrity: sha512-LICb2p9CB7FS+0eR1oqWnHhp0FljGLZCWBE9aix0Uye9W8LTQPwMTYVGWQWIw9RdQiDg4+epXQODwIYJtSJaow==}
+    engines: {node: '>=4'}
+
+  p-queue@6.6.2:
+    resolution: {integrity: sha512-RwFpb72c/BhQLEXIZ5K2e+AhgNVmIejGlTgiB9MzZ0e93GRvqZ7uSi0dvRF7/XIXDeNkra2fNHBxTyPDGySpjQ==}
+    engines: {node: '>=8'}
+
   p-retry@4.6.2:
     resolution: {integrity: sha512-312Id396EbJdvRONlngUx0NydfrIQ5lsYu0znKVUzVvArzEIt08V1qhtyESbGVd1FGX7UKtiFp5uwKZdM8wIuQ==}
+    engines: {node: '>=8'}
+
+  p-timeout@3.2.0:
+    resolution: {integrity: sha512-rhIwUycgwwKcP9yTOOFK/AKsAopjjCakVqLHePO3CC6Mir1Z99xT+R63jZxAT5lFZLa2inS5h+ZS2GvR99/FBg==}
     engines: {node: '>=8'}
 
   package-up@5.0.0:
@@ -3522,6 +3562,11 @@ snapshots:
     dependencies:
       '@durable-streams/client': 0.2.6
 
+  '@flue/slack@1.0.0-beta.1':
+    dependencies:
+      '@slack/types': 3.0.0-rc.1
+      hono: 4.12.22
+
   '@google/genai@1.52.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))':
     dependencies:
       google-auth-library: 10.7.0
@@ -4033,6 +4078,23 @@ snapshots:
 
   '@sindresorhus/is@7.2.0': {}
 
+  '@slack/logger@5.0.0-rc.1':
+    dependencies:
+      '@types/node': 24.13.2
+
+  '@slack/types@3.0.0-rc.1': {}
+
+  '@slack/web-api@8.0.0-rc.1':
+    dependencies:
+      '@slack/logger': 5.0.0-rc.1
+      '@slack/types': 3.0.0-rc.1
+      '@types/node': 24.13.2
+      '@types/retry': 0.12.0
+      eventemitter3: 5.0.4
+      p-queue: 6.6.2
+      p-retry: 4.6.2
+      retry: 0.13.1
+
   '@smithy/core@3.25.1':
     dependencies:
       '@aws-crypto/crc32': 5.2.0
@@ -4428,6 +4490,10 @@ snapshots:
   etag@1.8.1: {}
 
   event-target-polyfill@0.0.4: {}
+
+  eventemitter3@4.0.7: {}
+
+  eventemitter3@5.0.4: {}
 
   eventsource-parser@3.1.0: {}
 
@@ -4970,10 +5036,21 @@ snapshots:
       '@oxlint/binding-win32-x64-msvc': 1.70.0
       oxlint-tsgolint: 0.23.0
 
+  p-finally@1.0.0: {}
+
+  p-queue@6.6.2:
+    dependencies:
+      eventemitter3: 4.0.7
+      p-timeout: 3.2.0
+
   p-retry@4.6.2:
     dependencies:
       '@types/retry': 0.12.0
       retry: 0.13.1
+
+  p-timeout@3.2.0:
+    dependencies:
+      p-finally: 1.0.0
 
   package-up@5.0.0:
     dependencies:

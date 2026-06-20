@@ -1,10 +1,19 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": [".agents/**"],
   "plugins": ["import", "promise", "typescript", "unicorn", "oxc"],
   "categories": {
     "correctness": "error"
   },
   "rules": {},
+  "overrides": [
+    {
+      "files": ["**/*.test.ts"],
+      "rules": {
+        "typescript/no-floating-promises": "off"
+      }
+    }
+  ],
   "env": {
     "builtin": true
   },

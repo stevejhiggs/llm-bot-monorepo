@@ -4,11 +4,11 @@
   "compatibility_date": "2026-06-01",
   "compatibility_flags": ["nodejs_compat"],
   "durable_objects": {
-    "bindings": [{ "class_name": "Sandbox", "name": "Sandbox" }]
+    "bindings": [{ "class_name": "Sandbox", "name": "Sandbox" }],
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["FlueRegistry", "FlueD0ltBotAgent"] },
-    { "tag": "v2", "new_sqlite_classes": ["Sandbox"] }
+    { "tag": "v2", "new_sqlite_classes": ["Sandbox"] },
   ],
-  "containers": [{ "class_name": "Sandbox", "image": "./Dockerfile" }]
+  "containers": [{ "class_name": "Sandbox", "image": "./Dockerfile" }],
 }
