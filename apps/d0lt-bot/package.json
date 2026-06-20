@@ -9,13 +9,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@cloudflare/sandbox": "^0.12.1",
     "@flue/runtime": "1.0.0-beta.2",
+    "agents": "^0.14.1",
     "valibot": "^1.4.1"
   },
   "devDependencies": {
     "@flue/cli": "1.0.0-beta.1",
     "@types/node": "24.x",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "wrangler": "^4.102.0"
   },
   "engines": {
     "node": "24.x"
