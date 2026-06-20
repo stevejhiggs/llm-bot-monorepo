@@ -25,6 +25,11 @@ jobs:
           node-version: 24
           cache: pnpm
 
+      # node-liblzma (transitive via @flue/runtime → just-bash) builds from
+      # source and needs the liblzma headers; the runner doesn't ship them.
+      - name: Install native build deps
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends liblzma-dev
+
       - run: pnpm install --frozen-lockfile
 
       - name: Typecheck
