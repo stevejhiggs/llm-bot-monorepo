@@ -1,14 +1,27 @@
 import { expect, test } from "vitest";
 import { resolveSandboxKind } from "./sandbox.ts";
 
-test("defaults to local when FLUE_SANDBOX is unset", () => {
-  expect(resolveSandboxKind({})).toBe("local");
+test("explicit FLUE_SANDBOX=cloudflare selects cloudflare", () => {
+  // Explicit wins regardless of runtime.
+  expect(resolveSandboxKind({ FLUE_SANDBOX: "cloudflare" }, false)).toBe("cloudflare");
 });
 
-test("selects cloudflare when FLUE_SANDBOX=cloudflare", () => {
-  expect(resolveSandboxKind({ FLUE_SANDBOX: "cloudflare" })).toBe("cloudflare");
+test("explicit FLUE_SANDBOX=local selects local even on workerd", () => {
+  // An explicit override beats runtime inference.
+  expect(resolveSandboxKind({ FLUE_SANDBOX: "local" }, true)).toBe("local");
 });
 
-test("any other value falls back to local", () => {
-  expect(resolveSandboxKind({ FLUE_SANDBOX: "node" })).toBe("local");
+test("unset on workerd infers cloudflare", () => {
+  // The foot-gun guard: a deployed Worker that forgot FLUE_SANDBOX still gets the
+  // container sandbox instead of the node shell (which can't spawn on workerd).
+  expect(resolveSandboxKind({}, true)).toBe("cloudflare");
+});
+
+test("unset off workerd (node dev) infers local", () => {
+  expect(resolveSandboxKind({}, false)).toBe("local");
+});
+
+test("an unrecognized value falls back to runtime inference", () => {
+  expect(resolveSandboxKind({ FLUE_SANDBOX: "node" }, true)).toBe("cloudflare");
+  expect(resolveSandboxKind({ FLUE_SANDBOX: "node" }, false)).toBe("local");
 });

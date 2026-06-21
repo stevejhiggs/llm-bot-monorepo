@@ -25,3 +25,6 @@ catalogs:
 
   testing:
     vitest: ^4.1.9
+
+patchedDependencies:
+  "@flue/runtime@1.0.0-beta.2": patches/@flue__runtime@1.0.0-beta.2.patch

@@ -3,13 +3,20 @@
   "name": "d0lt-bot",
   "compatibility_date": "2026-06-01",
   "compatibility_flags": ["nodejs_compat"],
-  // Non-secret channel enable flags. Channels are opt-in via CHANNEL_<NAME>_ENABLE
-  // (read through channelEnabled() / process.env). Unlike the per-channel secrets
-  // (SLACK_SIGNING_SECRET, etc., set via `wrangler secret put`), these are plain
-  // booleans, so they belong here as vars — otherwise a deployed Worker has them
-  // unset and the channel stays inert (placeholder signing secret → Slack
-  // deliveries 401, handler ignores everything) even when its secrets are set.
+  // Non-secret runtime vars. These are read from process.env at runtime, so the
+  // build-time env (the FLUE_SANDBOX=cloudflare the deploy script sets, the
+  // CHANNEL_* flags in .dev.vars) does NOT reach the deployed Worker — they must be
+  // declared here or the Worker runs with them unset.
+  //
+  //  - FLUE_SANDBOX selects the sandbox at runtime (resolveSandboxKind). Without it
+  //    a deployed Worker falls back to the node local() sandbox, whose shell calls
+  //    child_process.spawnSync — unimplemented on workerd, so every clone/test fails.
+  //  - CHANNEL_<NAME>_ENABLE opt channels in (channelEnabled()); unset → the channel
+  //    boots inert with a placeholder secret and 401s every delivery.
+  // (Per-channel secrets like SLACK_SIGNING_SECRET are NOT vars — set them via
+  // `wrangler secret put`.)
   "vars": {
+    "FLUE_SANDBOX": "cloudflare",
     "CHANNEL_SLACK_ENABLE": "1",
   },
   "durable_objects": {
@@ -19,7 +26,10 @@
     { "tag": "v1", "new_sqlite_classes": ["FlueRegistry", "FlueD0ltBotAgent"] },
     { "tag": "v2", "new_sqlite_classes": ["Sandbox"] },
   ],
-  "containers": [{ "class_name": "Sandbox", "image": "./Dockerfile" }],
+  // The sandbox clones repos and runs installs/tests. The default (dev/lite) is
+  // 1/16 vCPU + 256 MiB — too small (OOMs on npm install). basic = 1/4 vCPU /
+  // 1 GiB / 4 GB disk; bump to a standard-* tier if larger repos OOM.
+  "containers": [{ "class_name": "Sandbox", "image": "./Dockerfile", "instance_type": "basic" }],
   // Cloudflare-native observability: persists console logs and worker/DO
   // invocation traces to the Cloudflare dashboard (Workers > d0lt-bot >
   // Observability). `enabled` is the master switch — it must be true for the
