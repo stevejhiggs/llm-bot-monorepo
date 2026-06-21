@@ -108,7 +108,9 @@ What triggers a run:
 - **A direct message** to the bot (`message` with `channel_type: im`).
 
 In both cases the message text is treated like a chat request (a GitHub URL + what to do), and
-the result is posted back in-thread. Messages from bots and edited/system messages are ignored.
+the result is posted back in-thread. Because a run takes a while, the bot also posts coarse
+progress milestones in the thread as it works (e.g. cloning, installing, running tests) before the
+final result. Messages from bots and edited/system messages are ignored.
 
 ### Setup
 

@@ -1,7 +1,7 @@
 import type { SlackEventsApiPayload } from "@flue/slack";
 import type { WebClient } from "@slack/web-api";
 import { expect, test } from "vitest";
-import { planSlackEvent, replyInThread } from "./slack-events.ts";
+import { planSlackEvent, postProgressInThread, replyInThread } from "./slack-events.ts";
 
 // Minimal Events API payload builders. We populate only the fields planSlackEvent
 // reads, then cast to the provider type — real payloads carry much more.
@@ -111,4 +111,54 @@ test("replyInThread posts to the bound thread and returns channel and ts", async
   expect(result.ts).toBe("333.3");
   expect(calls.length).toBe(1);
   expect(calls[0]).toEqual({ channel: "D1", thread_ts: "222.2", text: "Tests passed." });
+});
+
+test("replyInThread converts the model's markdown to Slack mrkdwn", async () => {
+  const calls: Array<Record<string, unknown>> = [];
+  const fakeClient = {
+    chat: {
+      postMessage: async (args: Record<string, unknown>) => {
+        calls.push(args);
+        return { ok: true, channel: "D1", ts: "1" };
+      },
+    },
+  } as unknown as WebClient;
+
+  const tool = replyInThread({ channelId: "D1", threadTs: "222.2" }, fakeClient);
+  await tool.execute({ text: "**PASS** — see [repo](https://x/y)" });
+
+  expect(calls[0]?.text).toBe("*PASS* — see <https://x/y|repo>");
+});
+
+test("post_slack_progress posts a converted note to the bound thread", async () => {
+  const calls: Array<Record<string, unknown>> = [];
+  const fakeClient = {
+    chat: {
+      postMessage: async (args: Record<string, unknown>) => {
+        calls.push(args);
+        return { ok: true, channel: "D1", ts: "444.4" };
+      },
+    },
+  } as unknown as WebClient;
+
+  const tool = postProgressInThread({ channelId: "D1", threadTs: "222.2" }, fakeClient);
+  const result = JSON.parse(await tool.execute({ text: "**Running** tests…" }));
+
+  expect(result).toEqual({ ok: true, ts: "444.4" });
+  expect(calls[0]).toEqual({ channel: "D1", thread_ts: "222.2", text: "*Running* tests…" });
+});
+
+test("post_slack_progress swallows a Slack error so the run is not aborted", async () => {
+  const fakeClient = {
+    chat: {
+      postMessage: async () => {
+        throw new Error("slack down");
+      },
+    },
+  } as unknown as WebClient;
+
+  const tool = postProgressInThread({ channelId: "D1", threadTs: "222.2" }, fakeClient);
+  const result = JSON.parse(await tool.execute({ text: "Cloning…" }));
+
+  expect(result).toEqual({ ok: false });
 });

@@ -114,15 +114,22 @@ Each integration is split into two files for a specific reason — keep the spli
   `plan*()` function (verified delivery → `{ ref, input } | null`), and the outbound tool factory
   (`commentOnIssue` / `replyInThread`).
 
-The agent's `channelTools(id)` tries each channel's `parseConversationKey(id)` in turn to bind the
-matching outbound tool (chat ids parse as neither → no channel tool). Outbound tools take only the
-message body/text from the model; the destination (issue/thread) is fixed at bind time from the
-verified delivery, so the model cannot redirect a post.
+The agent's `conversationTools(id)` tries each channel's `parseConversationKey(id)` in turn and
+returns `{ router, subagent }` tool lists (chat ids parse as no channel → both empty). Outbound
+tools take only the message body/text from the model; the destination (issue/thread) is fixed at
+bind time from the verified delivery, so the model cannot redirect a post.
+
+`subagent` is for tools a channel turn needs to give the **subagents**, not just the router. Slack
+uses it for `post_slack_progress`: the subagents post phase milestones (cloning/installing, running
+tests) while the router is blocked on its `task`. The subagent profiles are therefore **factories**
+(`createReviewer`/`createTestRunner`) built in the agent initializer with those injected tools —
+not static profiles. The router posts the opening ack and the final reply; the final reply runs the
+model's markdown through `toMrkdwn` (`lib/slack-format.ts`) because Slack renders mrkdwn, not GFM.
 
 To add a channel end to end: create the two files above, gate the channel with
 `channelEnabled("<name>")` (placeholder secret + early-return when disabled), add a branch to
-`channelTools(id)`, add a "When the turn comes from <X>" section to `src/agents/d0lt-bot.md`, and
-document its enable flag + secrets in `.env.example`, `.dev.vars`, and `README.md`.
+`conversationTools(id)`, add a "When the turn comes from <X>" section to `src/agents/d0lt-bot.md`,
+and document its enable flag + secrets in `.env.example`, `.dev.vars`, and `README.md`.
 
 ### Channel ⇄ agent import cycle
 

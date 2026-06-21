@@ -4,30 +4,42 @@ import { channel as githubChannel } from "../channels/github.ts";
 import { channel as slackChannel } from "../channels/slack.ts";
 import { channelEnabled } from "../lib/channel-flags.ts";
 import { commentOnIssue } from "../lib/github-webhook.ts";
-import { replyInThread } from "../lib/slack-events.ts";
+import { postProgressInThread, replyInThread } from "../lib/slack-events.ts";
 import instructions from "./d0lt-bot.md" with { type: "markdown" };
-import reviewer from "../subagents/reviewer.ts";
-import testRunner from "../subagents/test-runner.ts";
+import { createReviewer } from "../subagents/reviewer.ts";
+import { createTestRunner } from "../subagents/test-runner.ts";
+
+// What a turn's conversation id resolves to: the router's own outbound tools, plus
+// any tools to inject into the subagents. Slack is the only channel that gives
+// subagents a tool today — `post_slack_progress`, so they can narrate progress
+// while the router is blocked on its `task`.
+interface ConversationTools {
+  router: ToolDefinition[];
+  subagent: ToolDefinition[];
+}
 
 // A turn can arrive from chat (id "local"), from the GitHub channel, or from the
 // Slack channel. For a channel turn, the instance id is that channel's conversation
-// key and parses back to its bound destination — so the agent gets an outbound tool
+// key and parses back to its bound destination — so the agent gets outbound tools
 // fixed to that issue/PR or thread. Chat ids aren't keys and every parse throws,
 // leaving chat sessions with no channel tool. Read inside the deferred initializer
 // to keep the channel ⇄ agent import cycles safe.
-function channelTools(id: string): ToolDefinition[] {
+function conversationTools(id: string): ConversationTools {
   try {
-    return [commentOnIssue(githubChannel.parseConversationKey(id))];
+    return { router: [commentOnIssue(githubChannel.parseConversationKey(id))], subagent: [] };
   } catch {
     // not a GitHub conversation key
   }
   try {
-    const { channelId, threadTs } = slackChannel.parseConversationKey(id);
-    return [replyInThread({ channelId, threadTs })];
+    const ref = slackChannel.parseConversationKey(id);
+    const progress = postProgressInThread(ref);
+    // The router posts the opening ack and the final reply; the subagent posts the
+    // phase milestones in between (the router is blocked on the task while it runs).
+    return { router: [replyInThread(ref), progress], subagent: [progress] };
   } catch {
     // not a Slack conversation key
   }
-  return [];
+  return { router: [], subagent: [] };
 }
 
 export const description =
@@ -66,12 +78,14 @@ export default createAgent(async ({ id, env }) => {
         })
       : await (await import("../lib/sandbox.node.ts")).createNodeSandbox({ id });
 
+  const { router, subagent } = conversationTools(id);
+
   return {
     model: "anthropic/claude-sonnet-4-6",
     instructions,
     sandbox,
     cwd,
-    subagents: [reviewer, testRunner],
-    tools: channelTools(id),
+    subagents: [createReviewer(subagent), createTestRunner(subagent)],
+    tools: router,
   };
 });
