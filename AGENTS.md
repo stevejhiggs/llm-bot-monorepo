@@ -9,7 +9,9 @@ A proof-of-concept GitHub assistant built on the [Flue](https://flueframework.co
 framework, ported from the eve-based `d0lt-bot`. It reviews pull requests and runs repositories'
 tests inside a sandbox, and can be driven from chat, GitHub comments, or Slack.
 
-- **Monorepo:** Turborepo. The only app is `apps/d0lt-bot`; root scripts fan out via `turbo`.
+- **Monorepo:** Turborepo, two apps; root scripts fan out via `turbo`. `apps/d0lt-bot` is the Flue
+  runner (the agent). `apps/chat` is a TanStack Start web UI that talks to the runner — see "The
+  chat web app".
 - **Stack:** TypeScript (ESM, `NodeNext`), Node 24, pnpm 11. Flue runtime + CLI (`@flue/*`,
   currently `1.0.0-beta`). Tests with Vitest; lint/format with oxlint + oxfmt. Deploys to Node or
   Cloudflare Workers.
@@ -139,6 +141,32 @@ ones you leave off. On Cloudflare, secrets/vars are read via `process.env` (supp
 injected into the sandbox env and referenced by name as
 `$GITHUB_TOKEN` in the clone script — it never enters the model's context. See `.env.example` for
 the full list.
+
+### The chat web app (`apps/chat`)
+
+A TanStack Start app that renders a conversation with the agent via `useFlueAgent` from
+`@flue/react`. The browser never hits the runner directly: it calls this app's same-origin server
+proxy under `/api/flue` (`src/server.ts` + `src/lib/proxy.ts`), which forwards to `FLUE_RUNNER_URL`
+(sidesteps CORS; the runner serves none). The runner must have `CHANNEL_HTTP_ENABLE=true`. Run both:
+`pnpm dev` (runner, port 3583) and `pnpm --filter chat dev` (UI, port 3000).
+
+**Rendering the agent stream — represent every part type.** `useFlueAgent` reduces the runner's
+event stream into `UIMessage[]`, and each message's `parts` is a discriminated union
+(`@flue/react`'s `UIMessagePart`): `text`, `reasoning`, `dynamic-tool` (tool calls — `toolName`,
+`input`, and a `state` of `input-available` | `output-available` | `output-error` carrying
+`output`/`errorText`), and `file`. The bot's real work (subagent `task` delegation, `fetch_repo`,
+`bash`, `read`) arrives as `dynamic-tool` parts, and the subagent's turns stream into the **same**
+conversation. A renderer that handles only `text`/`reasoning` silently drops all of it and shows
+tool-only turns as **empty bubbles** — the symptom to watch for. When touching `Chat.tsx` or adding
+a part type, handle the whole union; verify against a real run, not just text replies.
+
+- Tool results often arrive MCP-shaped (`{ content: [{ type: "text", text }] }`) and shell output
+  carries ANSI colour codes — normalise both before display.
+- Keep the projection logic pure and in `src/lib/` with a colocated `*.test.ts` (e.g.
+  `lib/tool-part.ts`), mirroring the runner's "testable logic lives in `lib/`" rule; components stay
+  thin. Tests are offline Vitest — no live runner.
+- To exercise it end to end, drive the UI in a browser and inspect the stream (the runner replays a
+  conversation at `GET {FLUE_RUNNER_URL}/agents/d0lt-bot/<id>?offset=-1`).
 
 ## Build and deployment
 

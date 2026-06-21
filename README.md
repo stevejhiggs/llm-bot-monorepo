@@ -177,8 +177,10 @@ never reorder or rewrite deployed entries.
 
 ## Getting started
 
-This is a [Turborepo](https://turborepo.com) monorepo; the bot lives in
-[`apps/d0lt-bot`](apps/d0lt-bot). The root `pnpm` scripts fan out to the workspace via `turbo`.
+This is a [Turborepo](https://turborepo.com) monorepo with two apps: the bot (the Flue runner) in
+[`apps/d0lt-bot`](apps/d0lt-bot), and a web chat UI in [`apps/chat`](apps/chat) that talks to the
+runner over HTTP (see [`apps/chat/README.md`](apps/chat/README.md)). The root `pnpm` scripts fan out
+to the workspace via `turbo`.
 
 Requirements: **Node 24** and a package manager (`pnpm` recommended).
 
@@ -241,6 +243,13 @@ apps/d0lt-bot/             # the bot (Flue app)
 │     └─ github.ts          # URL parsing, ref validation, clone-script builder (shared)
 ├─ flue.config.ts
 ├─ tsconfig.json           # extends ../../tsconfig.base.json
+└─ package.json
+apps/chat/                 # web chat UI (TanStack Start); proxies to the runner
+├─ src/
+│  ├─ components/Chat.tsx  # transcript UI; renders text/reasoning/tool-call parts
+│  ├─ lib/                 # pure, tested logic (proxy, transcript, tool-part, …)
+│  ├─ routes/             # TanStack file routes
+│  └─ server.ts            # same-origin /api/flue proxy → FLUE_RUNNER_URL
 └─ package.json
 packages/                  # shared packages (none yet)
 turbo.json                 # task pipeline (build / dev / typecheck)
