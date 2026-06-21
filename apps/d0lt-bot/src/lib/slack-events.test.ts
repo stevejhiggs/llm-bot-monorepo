@@ -1,7 +1,12 @@
 import type { SlackEventsApiPayload } from "@flue/slack";
 import type { WebClient } from "@slack/web-api";
 import { expect, test } from "vitest";
-import { planSlackEvent, postProgressInThread, replyInThread } from "./slack-events.ts";
+import {
+  planSlackEvent,
+  postProgressInThread,
+  replyInThread,
+  workerdSafeFetch,
+} from "./slack-events.ts";
 
 // Minimal Events API payload builders. We populate only the fields planSlackEvent
 // reads, then cast to the provider type — real payloads carry much more.
@@ -161,4 +166,31 @@ test("post_slack_progress swallows a Slack error so the run is not aborted", asy
   const result = JSON.parse(await tool.execute({ text: "Cloning…" }));
 
   expect(result).toEqual({ ok: false });
+});
+
+test("workerdSafeFetch rewrites redirect:'error' to 'manual' (workerd rejects 'error')", async () => {
+  let seen: RequestInit | undefined;
+  const base: typeof fetch = async (_input, init) => {
+    seen = init;
+    return new Response("{}");
+  };
+
+  await workerdSafeFetch(base)("https://slack.test/api/chat.postMessage", {
+    method: "POST",
+    redirect: "error",
+  });
+
+  expect(seen?.redirect).toBe("manual");
+});
+
+test("workerdSafeFetch leaves a non-'error' redirect untouched", async () => {
+  let seen: RequestInit | undefined;
+  const base: typeof fetch = async (_input, init) => {
+    seen = init;
+    return new Response("{}");
+  };
+
+  await workerdSafeFetch(base)("https://slack.test/api/chat.postMessage", { redirect: "follow" });
+
+  expect(seen?.redirect).toBe("follow");
 });

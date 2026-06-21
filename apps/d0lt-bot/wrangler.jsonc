@@ -3,6 +3,15 @@
   "name": "d0lt-bot",
   "compatibility_date": "2026-06-01",
   "compatibility_flags": ["nodejs_compat"],
+  // Non-secret channel enable flags. Channels are opt-in via CHANNEL_<NAME>_ENABLE
+  // (read through channelEnabled() / process.env). Unlike the per-channel secrets
+  // (SLACK_SIGNING_SECRET, etc., set via `wrangler secret put`), these are plain
+  // booleans, so they belong here as vars — otherwise a deployed Worker has them
+  // unset and the channel stays inert (placeholder signing secret → Slack
+  // deliveries 401, handler ignores everything) even when its secrets are set.
+  "vars": {
+    "CHANNEL_SLACK_ENABLE": "1",
+  },
   "durable_objects": {
     "bindings": [{ "class_name": "Sandbox", "name": "Sandbox" }],
   },
