@@ -21,6 +21,7 @@
     "@octokit/rest": "^22.0.1",
     "@slack/web-api": "8.0.0-rc.1",
     "agents": "^0.16.2",
+    "hono": "^4.12.22",
     "valibot": "^1.4.1"
   },
   "devDependencies": {

@@ -149,6 +149,24 @@ injected into the sandbox env and referenced by name as
 `$GITHUB_TOKEN` in the clone script — it never enters the model's context. See `.env.example` for
 the full list.
 
+### Observability (`src/app.ts` + `lib/observe.ts`)
+
+Flue emits no telemetry on its own — you must register an observer. `src/app.ts` is the authored
+application entrypoint (Flue generates a default when it's absent); we author it for one reason: to
+call `observe(createConsoleObserver())` at module-eval time, before any request/alarm delivers work.
+It otherwise mounts `flue()` at `/` exactly like the default, so routing is unchanged — keep that
+mount if you edit it. `lib/observe.ts` is the **testable** half (mirroring the channel split): a pure
+`createConsoleObserver(sink = console)` that turns the `observe(...)` event stream
+([events reference](https://flueframework.com/docs/api/events-reference/)) into structured console
+logs — failures (`submission_settled` failed, `operation`/`turn`/`tool`/`task` `isError`), slow
+operations, and a one-line-per-step activity trail; it ignores streaming deltas. The sink is injected
+so the unit test drives it with a fake.
+
+This is deliberately a **console** sink, not OpenTelemetry: on Cloudflare the lines land in Workers
+Logs (gated by `observability.enabled: true` in `wrangler.jsonc`), queryable in the dashboard, with
+no external backend. For rich OTLP traces (per-model-turn cost, tool spans) to an external backend,
+add `@flue/opentelemetry` + a workerd-compatible SDK/exporter — see Flue's OpenTelemetry guide.
+
 ### The chat web app (`apps/chat`)
 
 A TanStack Start app that renders a conversation with the agent via `useFlueAgent` from
