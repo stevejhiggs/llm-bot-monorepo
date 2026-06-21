@@ -10,9 +10,10 @@ to Flue. Point it at a pull request or a repository in chat and it does the work
 - **Run a repository's tests** — clones the code, detects the stack, installs dependencies,
   runs the tests, and reports a pass/fail result with the relevant output.
 
-You can drive it two ways: interactively over chat (`flue connect`), or from GitHub itself —
+You can drive it three ways: interactively over chat (`flue connect`); from GitHub itself —
 the bot reacts to pull-request/issue comments and newly opened PRs and posts its results back
-as GitHub comments (see [GitHub integration](#github-integration)).
+as GitHub comments (see [GitHub integration](#github-integration)); or from Slack, by @-mentioning
+or DMing the bot, with results posted back in-thread (see [Slack integration](#slack-integration)).
 
 Note: like the original, this is not a full review system — it's a test of how these patterns
 map onto Flue.
@@ -23,8 +24,9 @@ A root agent routes each request to one of two specialist **subagents**, each de
 Flue's built-in `task` capability — mirroring the eve original:
 
 ```
-you ──chat (flue connect)──▶ d0lt-bot (router agent, owns the local() sandbox)
-                                │ delegates via `task`
+  chat (flue connect) ─┐
+  GitHub webhooks ─────┼──▶ d0lt-bot (router agent, owns the local() sandbox)
+  Slack events ────────┘        │ delegates via `task`
                 ┌───────────────┴────────────────┐
                 ▼                                 ▼
             reviewer                        test_runner
