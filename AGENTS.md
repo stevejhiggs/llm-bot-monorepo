@@ -101,6 +101,18 @@ Sandbox **container** Durable Object (`sandbox.cloudflare.ts`). The agent initia
 implementation with a dynamic `import()` so each target's sandbox module stays out of the other
 target's bundle — preserve this when touching the agent or sandbox modules.
 
+Both targets wrap their adapter in `lazySandbox()` (`src/lib/lazy-sandbox.ts`), which **defers the
+sandbox's one-time expensive setup until the first shell/file op** — the container boot
+(`setEnvVars`) on Cloudflare, the scratch-dir `mkdir` on node. A turn that never touches the
+sandbox (a plain chat reply, a Slack message that isn't a review/test request) therefore never
+provisions one. The wrapper gates every async `SessionEnv` method behind a memoized `prepare()`
+that runs at most once **before** the first delegated op (so the injected `GITHUB_TOKEN` is in
+place before the first clone), and passes the sync `cwd`/`resolvePath` straight through so they
+answer without booting. Keep `sandbox.node.ts`/`sandbox.cloudflare.ts` building a `SandboxFactory`
+(not doing eager I/O) so this contract holds; the lazy behavior is unit-tested in
+`lazy-sandbox.test.ts` (the two glue modules import target-specific deps and aren't tested
+directly, matching the `resolveSandboxKind`-only `sandbox.test.ts`).
+
 ### Channel pattern (follow this when adding a channel)
 
 Each integration is split into two files for a specific reason — keep the split:

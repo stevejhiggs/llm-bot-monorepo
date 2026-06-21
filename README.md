@@ -176,6 +176,11 @@ never reorder or rewrite deployed entries.
 - **Private repos.** The `GITHUB_TOKEN` secret is injected into the container's environment (via
   the sandbox's `setEnvVars`), so clones authenticate as `$GITHUB_TOKEN` at run time without the
   token ever entering the model's context — the same contract as local dev.
+- **Lazy provisioning.** Both targets wrap their sandbox in `lazySandbox()` (`src/lib/lazy-sandbox.ts`),
+  which defers the one-time expensive setup — the container boot (`setEnvVars`) on Cloudflare, the
+  scratch-dir `mkdir` on node — until the first shell/file op. A turn that never shells out (a plain
+  chat reply, a Slack message that isn't a review/test request) never spins up a container; a
+  review/test turn boots it just-in-time on its first command, with `GITHUB_TOKEN` injected first.
 - **Not Cloudflare Shell.** This uses Cloudflare *Sandbox* (full Linux), not the `cloudflare-shell`
   adapter, which exposes only a code tool and can't run `git`/install/test commands.
 

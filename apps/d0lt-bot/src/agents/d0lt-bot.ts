@@ -67,16 +67,14 @@ export default createAgent(async ({ id, env }) => {
 
   const { sandbox, cwd } =
     kind === "cloudflare"
-      ? await (
-          await import("../lib/sandbox.cloudflare.ts")
-        ).createCloudflareSandbox({
+      ? (await import("../lib/sandbox.cloudflare.ts")).createCloudflareSandbox({
           id,
           env: {
             Sandbox: (env as any).Sandbox,
             GITHUB_TOKEN: (env as any).GITHUB_TOKEN,
           },
         })
-      : await (await import("../lib/sandbox.node.ts")).createNodeSandbox({ id });
+      : (await import("../lib/sandbox.node.ts")).createNodeSandbox({ id });
 
   const { router, subagent } = conversationTools(id);
 
