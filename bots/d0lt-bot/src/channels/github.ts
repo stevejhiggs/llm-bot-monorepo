@@ -7,6 +7,7 @@
 
 import { createGitHubBotChannel } from "@repo/github";
 import { channelEnabled } from "../lib/channel-flags.ts";
+import { BOT_NAME } from "../config.ts";
 
 // Opt-in via CHANNEL_GITHUB_ENABLE. When disabled the channel still constructs
 // (discovery needs the export) but ignores every delivery, so no real
@@ -16,11 +17,11 @@ const enabled = channelEnabled("github");
 // We dispatch to the agent by its discovered name rather than importing it, so
 // this module has no import edge to the agent. d0lt-bot.ts still imports `channel`
 // from here to parse conversation keys, but that is now one-directional — there is
-// no channel ⇄ agent cycle. "d0lt-bot" is the agent module's filename.
+// no channel ⇄ agent cycle. BOT_NAME is the agent module's filename.
 export const channel = createGitHubBotChannel({
   enabled,
   webhookSecret: enabled ? process.env.GITHUB_WEBHOOK_SECRET! : undefined,
-  agentName: "d0lt-bot",
+  agentName: BOT_NAME,
   // Optional override; unset → the factory defaults to "@d0lt-bot".
   triggerPhrase: process.env.GITHUB_TRIGGER_PHRASE,
 });

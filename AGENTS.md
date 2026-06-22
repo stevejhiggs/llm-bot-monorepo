@@ -192,7 +192,7 @@ model's markdown through `toMrkdwn` (from `@repo/slack`) because Slack renders m
 ### Source-dependent prompt
 
 The agent's instructions are composed per turn, not static: a channel-agnostic **base**
-(`src/agents/d0lt-bot.md` — the subagent routing + notes) plus the **fragment** for the turn's
+(`src/agents/instructions.md` — the subagent routing + notes) plus the **fragment** for the turn's
 source. Each channel package owns its fragment as a markdown file (`packages/<name>/src/instructions.md`,
 exposed via the package's `exports` map as `"./instructions.md"`) and imports it from that package's
 `"./agent-integration"` subpath with `with { type: "markdown" }`; the bot attaches the selected

@@ -71,8 +71,9 @@ subagents. Final reply tools usually belong only to the router.
 
 ## Add A Subagent
 
-1. Add `bots/d0lt-bot/src/subagents/<name>.ts` and a matching markdown instruction
-   file if the profile needs longer instructions.
+1. Add a directory `bots/d0lt-bot/src/subagents/<name>/` containing an `agent.ts`
+   (the profile/factory) and an `instructions.md` alongside it for the profile's
+   instructions.
 2. Export a factory, not a static profile, when the subagent needs channel-injected
    tools.
 3. Add the factory to the `subagents` array in

@@ -4,13 +4,14 @@ import { resolveSandboxKind } from "@repo/sandbox";
 import { channel as githubChannel } from "../channels/github.ts";
 import { channel as slackChannel } from "../channels/slack.ts";
 import { channelEnabled } from "../lib/channel-flags.ts";
+import { BOT_NAME } from "../config.ts";
 import { fetchRepoTool } from "@repo/github";
 import { createGitHubAgentIntegration } from "@repo/github/agent-integration";
 import { createSlackAgentIntegration } from "@repo/slack/agent-integration";
-import baseInstructions from "./d0lt-bot.md" with { type: "markdown" };
+import baseInstructions from "./instructions.md" with { type: "markdown" };
 import exploreRepo from "@repo/github/skills/explore-repo/SKILL.md" with { type: "skill" };
-import { createReviewer } from "../subagents/reviewer.ts";
-import { createTestRunner } from "../subagents/test-runner.ts";
+import { createReviewer } from "../subagents/reviewer/agent.ts";
+import { createTestRunner } from "../subagents/test-runner/agent.ts";
 
 // The base prompt applies to every turn; a channel turn additionally gets its
 // package-owned fragment appended, and gets outbound tools bound to the verified
@@ -58,7 +59,7 @@ export default createAgent(async ({ id, env }) => {
         })
       : (await import("@repo/sandbox/node")).createNodeSandbox({
           id,
-          appName: "d0lt-bot",
+          appName: BOT_NAME,
           secrets: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },
         });
 

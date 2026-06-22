@@ -38,8 +38,9 @@ Important files:
 - `packages/channel-registry/src/index.ts` resolves channel conversation keys.
   A chat id does not parse as any channel key, so it gets no channel prompt
   fragment and no outbound channel tools.
-- `bots/d0lt-bot/src/subagents/reviewer.ts` and
-  `bots/d0lt-bot/src/subagents/test-runner.ts` build the subagent profiles.
+- `bots/d0lt-bot/src/subagents/reviewer/agent.ts` and
+  `bots/d0lt-bot/src/subagents/test-runner/agent.ts` build the subagent profiles
+  (each subagent gets its own directory with an `agent.ts` and an `instructions.md`).
 - `packages/github/src/fetch-repo.ts` exposes the `fetch_repo` tool both subagents
   use to obtain a shell-safe clone command.
 
@@ -134,7 +135,7 @@ pulls in `child_process`, which cannot enter the workerd bundle.
 
 Each turn gets:
 
-1. `bots/d0lt-bot/src/agents/d0lt-bot.md`
+1. `bots/d0lt-bot/src/agents/instructions.md`
 2. The channel package's `instructions.md`, only when the conversation id parses as
    that channel.
 

@@ -7,6 +7,7 @@
 
 import { createSlackBotChannel } from "@repo/slack";
 import { channelEnabled } from "../lib/channel-flags.ts";
+import { BOT_NAME } from "../config.ts";
 
 // Opt-in via CHANNEL_SLACK_ENABLE. When disabled the channel still constructs
 // (discovery needs the export) but ignores every event, so no real
@@ -16,9 +17,9 @@ const enabled = channelEnabled("slack");
 // We dispatch to the agent by its discovered name rather than importing it, so
 // this module has no import edge to the agent. d0lt-bot.ts still imports `channel`
 // from here to parse conversation keys, but that is now one-directional — there is
-// no channel ⇄ agent cycle. "d0lt-bot" is the agent module's filename.
+// no channel ⇄ agent cycle. BOT_NAME is the agent module's filename.
 export const channel = createSlackBotChannel({
   enabled,
   signingSecret: enabled ? process.env.SLACK_SIGNING_SECRET! : undefined,
-  agentName: "d0lt-bot",
+  agentName: BOT_NAME,
 });
