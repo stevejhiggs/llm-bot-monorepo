@@ -1,5 +1,6 @@
 packages:
   - "apps/*"
+  - "bots/*"
   - "packages/*"
 
 allowBuilds:
@@ -25,6 +26,19 @@ catalogs:
 
   testing:
     vitest: ^4.1.9
+
+  flue:
+    "@flue/runtime": 1.0.0-beta.2
+    "@flue/github": 1.0.0-beta.1
+    "@flue/slack": 1.0.0-beta.1
+
+  cf:
+    "@cloudflare/sandbox": ^0.12.1
+
+  external:
+    valibot: ^1.4.1
+    "@octokit/rest": ^22.0.1
+    "@slack/web-api": 8.0.0-rc.1
 
 patchedDependencies:
   "@flue/runtime@1.0.0-beta.2": patches/@flue__runtime@1.0.0-beta.2.patch

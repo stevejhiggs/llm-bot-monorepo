@@ -9,9 +9,12 @@ A proof-of-concept GitHub assistant built on the [Flue](https://flueframework.co
 framework, ported from the eve-based `d0lt-bot`. It reviews pull requests and runs repositories'
 tests inside a sandbox, and can be driven from chat, GitHub comments, or Slack.
 
-- **Monorepo:** Turborepo, two apps; root scripts fan out via `turbo`. `apps/d0lt-bot` is the Flue
-  runner (the agent). `apps/chat` is a TanStack Start web UI that talks to the runner — see "The
-  chat web app".
+- **Monorepo:** Turborepo. Bots (Flue runners) live under `bots/`; supporting apps live under
+  `apps/`. Root scripts fan out via `turbo`. `bots/d0lt-bot` is the first bot — the Flue runner
+  (the agent). `apps/chat` is a TanStack Start web UI that talks to the runner — see "The chat web
+  app". Additional bots are added under `bots/`. Shared functionality lives in source-only packages
+  under `packages/` (`@repo/sandbox`, `@repo/github`, `@repo/slack`) — bots consume them via
+  `workspace:*` and TypeScript resolves `.ts` sources directly (no build step required).
 - **Stack:** TypeScript (ESM, `NodeNext`), Node 24, pnpm 11. Flue runtime + CLI (`@flue/*`,
   currently `1.0.0-beta`). Tests with Vitest; lint/format with oxlint + oxfmt. Deploys to Node or
   Cloudflare Workers.
@@ -19,7 +22,7 @@ tests inside a sandbox, and can be driven from chat, GitHub comments, or Slack.
 ## Setup commands
 
 - Install deps: `pnpm install` (requires Node 24; pnpm is the package manager — do not use npm/yarn).
-- Configure secrets for local dev: copy `apps/d0lt-bot/.env.example` to `apps/d0lt-bot/.env`
+- Configure secrets for local dev: copy `bots/d0lt-bot/.env.example` to `bots/d0lt-bot/.env`
   (node) and/or `.dev.vars` (Cloudflare). At minimum set `ANTHROPIC_API_KEY`. With both channels
   present the app also needs `GITHUB_WEBHOOK_SECRET` and `SLACK_SIGNING_SECRET` to boot (see
   "Secrets and startup").
@@ -36,18 +39,19 @@ Run from the repo root unless noted.
 
 ## Testing instructions
 
-Tests run on **Vitest**. Test files are colocated as `*.test.ts` under `src/`.
+Tests run on **Vitest**. Test files are colocated as `*.test.ts` within each package and the bot.
 
-- Run all tests: `pnpm test` (root, delegates to the app) or `pnpm --filter d0lt-bot test`.
+- Run all tests: `pnpm test` (root, runs `turbo run test` across all packages and the bot).
+- Run one package: `pnpm --filter @repo/sandbox test` (or `@repo/github`, `@repo/slack`, `d0lt-bot`, `chat`).
 - Watch mode: `pnpm --filter d0lt-bot test:watch`.
-- Run one file: `pnpm --filter d0lt-bot test src/lib/slack-events.test.ts`.
+- Run one file: `pnpm --filter d0lt-bot test src/lib/channel-flags.test.ts`.
 - Focus by name: `pnpm --filter d0lt-bot test -- -t '<substring>'`.
 
 Tests are pure and offline — no network, no live Flue runtime. Channel logic is tested by driving
 the pure `plan*()` functions directly and invoking the outbound tools with an **injected fake
 client** (Octokit/WebClient). Follow that pattern for new channels; do not require the agent graph
 in a test (the agent imports markdown via `with { type: "markdown" }`, which Vitest's loader does
-not resolve without the Flue plugin — that is why testable logic lives in `lib/`, not `channels/`).
+not resolve without the Flue plugin — that is why testable logic lives in the `@repo/*` packages (and the bot's `lib/channel-flags.ts` / `lib/observe.ts`), not in `channels/` or the agent graph).
 
 ## Code style
 
@@ -67,7 +71,7 @@ not resolve without the Flue plugin — that is why testable logic lives in `lib
 
 ### One agent, three entry points
 
-A single **router agent** (`apps/d0lt-bot/src/agents/d0lt-bot.ts`) is reached three ways, all
+A single **router agent** (`bots/d0lt-bot/src/agents/d0lt-bot.ts`) is reached three ways, all
 landing on the same agent instance/conversation:
 
 1. **Chat** — `flue connect` (instance id `local`); private child-process IPC, no HTTP.
@@ -89,29 +93,29 @@ route. **All three entry points are opt-in** via `CHANNEL_<NAME>_ENABLE` env var
 
 The router owns the sandbox and delegates to two **subagents** (`reviewer`, `test_runner` under
 `src/subagents/`) via Flue's built-in `task` capability. Subagents never clone directly: the
-shared `fetch_repo` tool (`src/tools/fetch-repo.ts`) validates a GitHub URL and returns an
-injection-safe shell command (assembled by `src/lib/github.ts`) that the subagent runs with its
-bash tool inside the router's sandbox.
+shared `fetchRepoTool` (from `@repo/github`) validates a GitHub URL and returns an
+injection-safe shell command that the subagent runs with its bash tool inside the router's sandbox.
 
 ### Runtime-selected sandbox (dual target)
 
-The same code runs on two targets. `resolveSandboxKind()` (`src/lib/sandbox.ts`) reads
-`FLUE_SANDBOX`: unset → node `local()` sandbox (`sandbox.node.ts`); `cloudflare` → a Cloudflare
-Sandbox **container** Durable Object (`sandbox.cloudflare.ts`). The agent initializer picks the
+The same code runs on two targets. `resolveSandboxKind()` (from `@repo/sandbox`) reads
+`FLUE_SANDBOX`: unset → node `local()` sandbox (`@repo/sandbox/node`); `cloudflare` → a Cloudflare
+Sandbox **container** Durable Object (`@repo/sandbox/cloudflare`). The agent initializer picks the
 implementation with a dynamic `import()` so each target's sandbox module stays out of the other
 target's bundle — preserve this when touching the agent or sandbox modules.
 
-Both targets wrap their adapter in `lazySandbox()` (`src/lib/lazy-sandbox.ts`), which **defers the
+Both targets wrap their adapter in `lazySandbox()` (from `@repo/sandbox`), which **defers the
 sandbox's one-time expensive setup until the first shell/file op** — the container boot
 (`setEnvVars`) on Cloudflare, the scratch-dir `mkdir` on node. A turn that never touches the
 sandbox (a plain chat reply, a Slack message that isn't a review/test request) therefore never
 provisions one. The wrapper gates every async `SessionEnv` method behind a memoized `prepare()`
-that runs at most once **before** the first delegated op (so the injected `GITHUB_TOKEN` is in
-place before the first clone), and passes the sync `cwd`/`resolvePath` straight through so they
-answer without booting. Keep `sandbox.node.ts`/`sandbox.cloudflare.ts` building a `SandboxFactory`
-(not doing eager I/O) so this contract holds; the lazy behavior is unit-tested in
-`lazy-sandbox.test.ts` (the two glue modules import target-specific deps and aren't tested
-directly, matching the `resolveSandboxKind`-only `sandbox.test.ts`).
+that runs at most once **before** the first delegated op (the bot passes a `secrets` record
+`{ GITHUB_TOKEN }` at construction time, injected into the sandbox before the first clone), and
+passes the sync `cwd`/`resolvePath` straight through so they answer without booting. Keep the
+node/cloudflare adapter modules in `@repo/sandbox` building a `SandboxFactory` (not doing eager
+I/O) so this contract holds; the lazy behavior is unit-tested in `packages/sandbox/src/`
+(the two glue modules import target-specific deps and aren't tested directly, matching the
+`resolveSandboxKind`-only sandbox test).
 
 ### Channel pattern (follow this when adding a channel)
 
@@ -122,9 +126,10 @@ Each integration is split into two files for a specific reason — keep the spli
   `dispatch(d0ltBot, { id: channel.conversationKey(plan.ref), input: plan.input })`. Flue
   auto-discovers `channels/*.ts` and serves each under `/channels/<name>/...`; every file there
   **must** export a `channel`. Do not put helpers in `channels/`.
-- **Testable logic** `src/lib/<name>-(webhook|events).ts` — the outbound API client, a pure
-  `plan*()` function (verified delivery → `{ ref, input } | null`), and the outbound tool factory
-  (`commentOnIssue` / `replyInThread`).
+- **Testable logic** in `@repo/github` / `@repo/slack` (was `src/lib/<name>-(webhook|events).ts`) —
+  the outbound API client, a pure `plan*()` function (verified delivery → `{ ref, input } | null`),
+  and the outbound tool factory (`commentOnIssue` / `replyInThread`). The thin channel in
+  `bots/d0lt-bot/src/channels/<name>.ts` imports these plan/tool functions from the package.
 
 The agent's `conversationTools(id)` tries each channel's `parseConversationKey(id)` in turn and
 returns `{ router, subagent }` tool lists (chat ids parse as no channel → both empty). Outbound
@@ -207,13 +212,13 @@ a part type, handle the whole union; verify against a real run, not just text re
 
 ## Build and deployment
 
-- Build (node): `pnpm build` → `apps/d0lt-bot/dist/server.mjs`.
-- Build (Cloudflare): `pnpm --filter d0lt-bot build:cf` → `apps/d0lt-bot/dist/d0lt_bot/` (note the
+- Build (node): `pnpm build` → `bots/d0lt-bot/dist/server.mjs`.
+- Build (Cloudflare): `pnpm --filter d0lt-bot build:cf` → `bots/d0lt-bot/dist/d0lt_bot/` (note the
   underscore), including the generated `wrangler.json`.
 - Deploy: `pnpm --filter d0lt-bot deploy` (build:cf + `wrangler deploy`). Requires `wrangler
   login`; set production secrets with `wrangler secret put <NAME>`.
 - Cloudflare constraints:
-  - Durable Object migrations in `apps/d0lt-bot/wrangler.jsonc` are **append-only** — never reorder
+  - Durable Object migrations in `bots/d0lt-bot/wrangler.jsonc` are **append-only** — never reorder
     or rewrite deployed entries; append a new tagged migration for any new DO class.
   - The `Dockerfile` base-image tag is pinned to the installed `@cloudflare/sandbox` version; bump
     them together.

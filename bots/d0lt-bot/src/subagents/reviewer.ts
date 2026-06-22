@@ -1,6 +1,6 @@
 import { defineAgentProfile, type ToolDefinition } from "@flue/runtime";
 import instructions from "./reviewer.md" with { type: "markdown" };
-import fetchRepo from "../tools/fetch-repo.ts";
+import { fetchRepoTool } from "@repo/github";
 
 // Subagent profile delegated to by d0lt-bot via its built-in `task` capability.
 // Shares the router's local() sandbox; clones and reads the PR there. Inherits the
@@ -17,6 +17,6 @@ export function createReviewer(extraTools: ToolDefinition[] = []) {
       "returns a structured code review (summary, severity-tagged findings, recommendation).",
     thinkingLevel: "high",
     instructions,
-    tools: [fetchRepo, ...extraTools],
+    tools: [fetchRepoTool, ...extraTools],
   });
 }

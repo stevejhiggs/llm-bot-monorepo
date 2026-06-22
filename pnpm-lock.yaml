@@ -5,6 +5,30 @@ settings:
   excludeLinksFromLockfile: false
 
 catalogs:
+  cf:
+    '@cloudflare/sandbox':
+      specifier: ^0.12.1
+      version: 0.12.1
+  external:
+    '@octokit/rest':
+      specifier: ^22.0.1
+      version: 22.0.1
+    '@slack/web-api':
+      specifier: 8.0.0-rc.1
+      version: 8.0.0-rc.1
+    valibot:
+      specifier: ^1.4.1
+      version: 1.4.1
+  flue:
+    '@flue/github':
+      specifier: 1.0.0-beta.1
+      version: 1.0.0-beta.1
+    '@flue/runtime':
+      specifier: 1.0.0-beta.2
+      version: 1.0.0-beta.2
+    '@flue/slack':
+      specifier: 1.0.0-beta.1
+      version: 1.0.0-beta.1
   testing:
     vitest:
       specifier: ^4.1.9
@@ -137,35 +161,35 @@ importers:
         specifier: ^4.1.5
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.19.21)(jsdom@28.1.0)(vite@8.0.16(@types/node@22.19.21)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
-  apps/d0lt-bot:
+  bots/d0lt-bot:
     dependencies:
       '@cloudflare/sandbox':
-        specifier: ^0.12.1
+        specifier: catalog:cf
         version: 0.12.1
       '@flue/github':
-        specifier: 1.0.0-beta.1
+        specifier: catalog:flue
         version: 1.0.0-beta.1
       '@flue/runtime':
-        specifier: 1.0.0-beta.2
+        specifier: catalog:flue
         version: 1.0.0-beta.2(patch_hash=98e250f6ca915f426cf426a2171930a066d6b8c6068d6002edbe82c59eded894)(@cfworker/json-schema@4.1.1)(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(typebox@1.1.38)(typescript@7.0.1-rc)(ws@8.21.0)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@flue/slack':
-        specifier: 1.0.0-beta.1
+        specifier: catalog:flue
         version: 1.0.0-beta.1
-      '@octokit/rest':
-        specifier: ^22.0.1
-        version: 22.0.1
-      '@slack/web-api':
-        specifier: 8.0.0-rc.1
-        version: 8.0.0-rc.1
+      '@repo/github':
+        specifier: workspace:*
+        version: link:../../packages/github
+      '@repo/sandbox':
+        specifier: workspace:*
+        version: link:../../packages/sandbox
+      '@repo/slack':
+        specifier: workspace:*
+        version: link:../../packages/slack
       agents:
         specifier: ^0.16.2
         version: 0.16.2(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@cloudflare/workers-types@4.20260619.1)(ai@6.0.208(zod@4.4.3))(react@19.2.7)(rolldown@1.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(zod@4.4.3)
       hono:
         specifier: ^4.12.22
         version: 4.12.26
-      valibot:
-        specifier: ^1.4.1
-        version: 1.4.1(typescript@7.0.1-rc)
     devDependencies:
       '@flue/cli':
         specifier: 1.0.0-beta.1
@@ -182,6 +206,75 @@ importers:
       wrangler:
         specifier: ^4.103.0
         version: 4.103.0(@cloudflare/workers-types@4.20260619.1)
+
+  packages/github:
+    dependencies:
+      '@flue/github':
+        specifier: catalog:flue
+        version: 1.0.0-beta.1
+      '@flue/runtime':
+        specifier: catalog:flue
+        version: 1.0.0-beta.2(patch_hash=98e250f6ca915f426cf426a2171930a066d6b8c6068d6002edbe82c59eded894)(@cfworker/json-schema@4.1.1)(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(typebox@1.1.38)(typescript@7.0.1-rc)(ws@8.21.0)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@octokit/rest':
+        specifier: catalog:external
+        version: 22.0.1
+      valibot:
+        specifier: catalog:external
+        version: 1.4.1(typescript@7.0.1-rc)
+    devDependencies:
+      '@types/node':
+        specifier: catalog:tooling
+        version: 24.13.2
+      typescript:
+        specifier: catalog:tooling
+        version: 7.0.1-rc
+      vitest:
+        specifier: catalog:testing
+        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@24.13.2)(jsdom@28.1.0)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
+
+  packages/sandbox:
+    dependencies:
+      '@cloudflare/sandbox':
+        specifier: catalog:cf
+        version: 0.12.1
+      '@flue/runtime':
+        specifier: catalog:flue
+        version: 1.0.0-beta.2(patch_hash=98e250f6ca915f426cf426a2171930a066d6b8c6068d6002edbe82c59eded894)(@cfworker/json-schema@4.1.1)(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(typebox@1.1.38)(typescript@7.0.1-rc)(ws@8.21.0)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+    devDependencies:
+      '@types/node':
+        specifier: catalog:tooling
+        version: 24.13.2
+      typescript:
+        specifier: catalog:tooling
+        version: 7.0.1-rc
+      vitest:
+        specifier: catalog:testing
+        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@24.13.2)(jsdom@28.1.0)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
+
+  packages/slack:
+    dependencies:
+      '@flue/runtime':
+        specifier: catalog:flue
+        version: 1.0.0-beta.2(patch_hash=98e250f6ca915f426cf426a2171930a066d6b8c6068d6002edbe82c59eded894)(@cfworker/json-schema@4.1.1)(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(typebox@1.1.38)(typescript@7.0.1-rc)(ws@8.21.0)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@flue/slack':
+        specifier: catalog:flue
+        version: 1.0.0-beta.1
+      '@slack/web-api':
+        specifier: catalog:external
+        version: 8.0.0-rc.1
+      valibot:
+        specifier: catalog:external
+        version: 1.4.1(typescript@7.0.1-rc)
+    devDependencies:
+      '@types/node':
+        specifier: catalog:tooling
+        version: 24.13.2
+      typescript:
+        specifier: catalog:tooling
+        version: 7.0.1-rc
+      vitest:
+        specifier: catalog:testing
+        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@24.13.2)(jsdom@28.1.0)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
 packages:
 
@@ -5950,7 +6043,7 @@ snapshots:
 
   '@slack/logger@5.0.0-rc.1':
     dependencies:
-      '@types/node': 24.13.2
+      '@types/node': 22.19.21
 
   '@slack/types@3.0.0-rc.1': {}
 
@@ -5958,7 +6051,7 @@ snapshots:
     dependencies:
       '@slack/logger': 5.0.0-rc.1
       '@slack/types': 3.0.0-rc.1
-      '@types/node': 24.13.2
+      '@types/node': 22.19.21
       '@types/retry': 0.12.0
       eventemitter3: 5.0.4
       p-queue: 6.6.2
@@ -8304,7 +8397,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.1
-      '@types/node': 24.13.2
+      '@types/node': 22.19.21
       long: 5.3.2
 
   proxy-addr@2.0.7:

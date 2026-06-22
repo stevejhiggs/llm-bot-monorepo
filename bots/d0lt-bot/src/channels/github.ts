@@ -4,14 +4,14 @@
 // handler runs, so everything below sees only authentic deliveries.
 //
 // This module is intentionally thin: the branching logic and the outbound comment
-// tool live in ../lib/github-webhook.ts (unit-tested there). Here we only build the
+// tool live in `@repo/github` (unit-tested there). Here we only build the
 // channel and bridge verified deliveries to the d0lt-bot agent via dispatch().
 
 import { createGitHubChannel } from "@flue/github";
 import { dispatch } from "@flue/runtime";
 import d0ltBot from "../agents/d0lt-bot.ts";
 import { channelEnabled } from "../lib/channel-flags.ts";
-import { planDelivery, triggerPhrase } from "../lib/github-webhook.ts";
+import { planDelivery, triggerPhrase } from "@repo/github";
 
 // Opt-in via CHANNEL_GITHUB_ENABLE. Flue discovers every channels/*.ts and requires
 // a valid `channel` export, so a disabled channel can't be omitted — instead it
@@ -42,4 +42,4 @@ export const channel = createGitHubChannel({
   },
 });
 
-export { commentOnIssue } from "../lib/github-webhook.ts";
+export { commentOnIssue } from "@repo/github";

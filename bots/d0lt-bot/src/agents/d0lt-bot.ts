@@ -1,10 +1,10 @@
 import { createAgent, type AgentRouteHandler, type ToolDefinition } from "@flue/runtime";
-import { resolveSandboxKind } from "../lib/sandbox.ts";
+import { resolveSandboxKind } from "@repo/sandbox";
 import { channel as githubChannel } from "../channels/github.ts";
 import { channel as slackChannel } from "../channels/slack.ts";
 import { channelEnabled } from "../lib/channel-flags.ts";
-import { commentOnIssue } from "../lib/github-webhook.ts";
-import { postProgressInThread, replyInThread } from "../lib/slack-events.ts";
+import { commentOnIssue } from "@repo/github";
+import { postProgressInThread, replyInThread } from "@repo/slack";
 import instructions from "./d0lt-bot.md" with { type: "markdown" };
 import { createReviewer } from "../subagents/reviewer.ts";
 import { createTestRunner } from "../subagents/test-runner.ts";
@@ -67,14 +67,15 @@ export default createAgent(async ({ id, env }) => {
 
   const { sandbox, cwd } =
     kind === "cloudflare"
-      ? (await import("../lib/sandbox.cloudflare.ts")).createCloudflareSandbox({
+      ? (await import("@repo/sandbox/cloudflare")).createCloudflareSandbox({
           id,
-          env: {
-            Sandbox: (env as any).Sandbox,
-            GITHUB_TOKEN: (env as any).GITHUB_TOKEN,
-          },
+          sandboxBinding: (env as any).Sandbox,
+          secrets: { GITHUB_TOKEN: (env as any).GITHUB_TOKEN },
         })
-      : (await import("../lib/sandbox.node.ts")).createNodeSandbox({ id });
+      : (await import("@repo/sandbox/node")).createNodeSandbox({
+          id,
+          secrets: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },
+        });
 
   const { router, subagent } = conversationTools(id);
 

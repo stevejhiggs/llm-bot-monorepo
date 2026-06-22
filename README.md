@@ -1,8 +1,13 @@
-# d0lt-bot poc (Flue)
+# llm-bot-monorepo
 
-A GitHub assistant built on the [Flue](https://flueframework.com/) agent framework. It is a
-port of [`d0lt-bot`](../d0lt-bot) (which is built on [eve](https://www.npmjs.com/package/eve))
-to Flue. Point it at a pull request or a repository in chat and it does the work in a sandbox:
+A monorepo for building LLM-powered bots on the [Flue](https://flueframework.com/) agent
+framework. It is structured to host multiple bots over time; **d0lt-bot** is the first.
+
+## d0lt-bot
+
+A GitHub assistant built on Flue. It is a port of
+[`d0lt-bot`](../d0lt-bot) (which is built on [eve](https://www.npmjs.com/package/eve)) to Flue.
+Point it at a pull request or a repository in chat and it does the work in a sandbox:
 
 - **Review a pull request** — clones the repo, reads the diff in context, and returns a
   structured code review: a summary, severity-tagged findings (file/line/suggestion), and an
@@ -35,13 +40,11 @@ Flue's built-in `task` capability — mirroring the eve original:
    → structured review               → pass/fail + output
 ```
 
-Both subagents share one `fetch_repo` tool, defined once in
-[`apps/d0lt-bot/src/tools/fetch-repo.ts`](apps/d0lt-bot/src/tools/fetch-repo.ts). In Flue a tool's `execute` receives only
-its validated arguments — no sandbox — so `fetch_repo` does not clone; it validates the GitHub
-URL with the shared helpers in [`apps/d0lt-bot/src/lib/github.ts`](apps/d0lt-bot/src/lib/github.ts) and returns the exact,
-injection-safe shell command. The subagent then runs that command with its bash tool inside the
-router's `local()` sandbox, reads the diff / runs the tests, and returns its result for the
-router to narrate.
+Both subagents share one `fetch_repo` tool (`fetchRepoTool` from [`@repo/github`](packages/github)).
+In Flue a tool's `execute` receives only its validated arguments — no sandbox — so `fetch_repo`
+does not clone; it validates the GitHub URL and returns the exact, injection-safe shell command.
+The subagent then runs that command with its bash tool inside the router's `local()` sandbox,
+reads the diff / runs the tests, and returns its result for the router to narrate.
 
 Each chat instance gets its own scratch directory under the OS temp dir (created before the
 sandbox initializes). Private repos are supported via a `GITHUB_TOKEN`: it is exposed to the
@@ -59,12 +62,11 @@ Start the server (`pnpm dev`), then chat with the agent via `pnpm connect`:
 ## GitHub integration
 
 The bot can also be driven from GitHub directly. A [Flue GitHub channel](https://flueframework.com/docs/ecosystem/channels/github/)
-in [`apps/d0lt-bot/src/channels/github.ts`](apps/d0lt-bot/src/channels/github.ts) receives verified
+in [`bots/d0lt-bot/src/channels/github.ts`](bots/d0lt-bot/src/channels/github.ts) receives verified
 webhook deliveries and dispatches them to the same router agent; the agent then posts its result
 back as a GitHub comment using a `comment_on_github_issue` tool bound to that issue/PR. The
 webhook-handling logic and the comment tool live in
-[`apps/d0lt-bot/src/lib/github-webhook.ts`](apps/d0lt-bot/src/lib/github-webhook.ts) (unit-tested
-in `github-webhook.test.ts`).
+[`@repo/github`](packages/github) (unit-tested there).
 
 What triggers a run:
 
@@ -96,12 +98,11 @@ serialize on one instance); the id is threaded through so dedup can be added if 
 ## Slack integration
 
 The bot can also be driven from Slack. A [Flue Slack channel](https://flueframework.com/docs/ecosystem/channels/slack/)
-in [`apps/d0lt-bot/src/channels/slack.ts`](apps/d0lt-bot/src/channels/slack.ts) receives verified
+in [`bots/d0lt-bot/src/channels/slack.ts`](bots/d0lt-bot/src/channels/slack.ts) receives verified
 Events API deliveries and dispatches them to the same router agent; the agent replies in the
 Slack thread using a `reply_in_slack_thread` tool bound to that thread. The event-handling
 logic and the reply tool live in
-[`apps/d0lt-bot/src/lib/slack-events.ts`](apps/d0lt-bot/src/lib/slack-events.ts) (unit-tested in
-`slack-events.test.ts`).
+[`@repo/slack`](packages/slack) (unit-tested there).
 
 What triggers a run:
 
@@ -136,7 +137,7 @@ The same agent runs on two targets. Locally it uses the node `local()` sandbox; 
 it runs shell work in a Cloudflare Sandbox **container** (`@cloudflare/sandbox`). The sandbox
 is chosen by the `FLUE_SANDBOX` env var, set automatically by the `*:cf` scripts.
 
-Local Cloudflare dev (reads `apps/d0lt-bot/.dev.vars`):
+Local Cloudflare dev (reads `bots/d0lt-bot/.dev.vars`):
 
 ```bash
 pnpm --filter d0lt-bot dev:cf
@@ -145,7 +146,7 @@ pnpm --filter d0lt-bot dev:cf
 Deploy (requires `wrangler login`):
 
 ```bash
-cd apps/d0lt-bot
+cd bots/d0lt-bot
 wrangler secret put ANTHROPIC_API_KEY
 wrangler secret put GITHUB_TOKEN          # optional, for private repos + posting comments
 wrangler secret put GITHUB_WEBHOOK_SECRET # to receive GitHub webhooks (see GitHub integration)
@@ -158,7 +159,7 @@ The GitHub channel's Octokit client and the Slack channel's `@slack/web-api` cli
 Cloudflare under the `nodejs_compat` flag already set
 in `wrangler.jsonc`.
 
-`wrangler.jsonc` and `Dockerfile` live in `apps/d0lt-bot/`. The `Dockerfile` base-image tag is
+`wrangler.jsonc` and `Dockerfile` live in `bots/d0lt-bot/`. The `Dockerfile` base-image tag is
 pinned to the installed `@cloudflare/sandbox` version. Durable Object migrations are append-only —
 never reorder or rewrite deployed entries.
 
@@ -176,7 +177,7 @@ never reorder or rewrite deployed entries.
 - **Private repos.** The `GITHUB_TOKEN` secret is injected into the container's environment (via
   the sandbox's `setEnvVars`), so clones authenticate as `$GITHUB_TOKEN` at run time without the
   token ever entering the model's context — the same contract as local dev.
-- **Lazy provisioning.** Both targets wrap their sandbox in `lazySandbox()` (`src/lib/lazy-sandbox.ts`),
+- **Lazy provisioning.** Both targets wrap their sandbox in `lazySandbox()` (from `@repo/sandbox`),
   which defers the one-time expensive setup — the container boot (`setEnvVars`) on Cloudflare, the
   scratch-dir `mkdir` on node — until the first shell/file op. A turn that never shells out (a plain
   chat reply, a Slack message that isn't a review/test request) never spins up a container; a
@@ -186,10 +187,14 @@ never reorder or rewrite deployed entries.
 
 ## Getting started
 
-This is a [Turborepo](https://turborepo.com) monorepo with two apps: the bot (the Flue runner) in
-[`apps/d0lt-bot`](apps/d0lt-bot), and a web chat UI in [`apps/chat`](apps/chat) that talks to the
-runner over HTTP (see [`apps/chat/README.md`](apps/chat/README.md)). The root `pnpm` scripts fan out
-to the workspace via `turbo`.
+This is a [Turborepo](https://turborepo.com) monorepo. Bots (the Flue runners) live under
+[`bots/`](bots) — the first is [`bots/d0lt-bot`](bots/d0lt-bot) — and supporting apps live under
+[`apps/`](apps), currently a web chat UI in [`apps/chat`](apps/chat) that talks to a runner over
+HTTP (see [`apps/chat/README.md`](apps/chat/README.md)). Shared functionality lives under
+[`packages/`](packages) as source-only TypeScript packages (`@repo/sandbox`, `@repo/github`,
+`@repo/slack`) — bots consume them via `workspace:*` and TypeScript resolves their `.ts` sources
+directly (no build step). Additional bots can be added under `bots/`. The root `pnpm` scripts fan
+out to the workspace via `turbo`.
 
 Requirements: **Node 24** and a package manager (`pnpm` recommended).
 
@@ -197,10 +202,10 @@ Requirements: **Node 24** and a package manager (`pnpm` recommended).
 pnpm install
 
 # Set your Anthropic API key (used directly, not via a gateway).
-cp apps/d0lt-bot/.env.example apps/d0lt-bot/.env
-echo 'ANTHROPIC_API_KEY="sk-ant-..."' >> apps/d0lt-bot/.env
+cp bots/d0lt-bot/.env.example bots/d0lt-bot/.env
+echo 'ANTHROPIC_API_KEY="sk-ant-..."' >> bots/d0lt-bot/.env
 # Optional: a GitHub token with repo read access, for private repos.
-# echo 'GITHUB_TOKEN="ghp_..."' >> apps/d0lt-bot/.env
+# echo 'GITHUB_TOKEN="ghp_..."' >> bots/d0lt-bot/.env
 
 # Start the server.
 pnpm dev          # http://127.0.0.1:3583
@@ -209,11 +214,11 @@ pnpm dev          # http://127.0.0.1:3583
 pnpm connect
 ```
 
-Flue loads `apps/d0lt-bot/.env` for `flue dev` and `flue connect`.
+Flue loads `bots/d0lt-bot/.env` for `flue dev` and `flue connect`.
 
 ## Development
 
-Run from the repo root; `turbo` runs the matching task in `apps/d0lt-bot`.
+Run from the repo root; `turbo` runs the matching task in `bots/d0lt-bot`.
 
 ```bash
 pnpm typecheck      # turbo run typecheck (tsc --noEmit)
@@ -238,7 +243,7 @@ Sandbox).
 ## Project layout
 
 ```
-apps/d0lt-bot/             # the bot (Flue app)
+bots/d0lt-bot/             # the first bot (Flue app); more bots can live alongside it under bots/
 ├─ src/
 │  ├─ agents/
 │  │  ├─ d0lt-bot.ts        # root router; owns the local() sandbox; route → flue connect
@@ -246,10 +251,9 @@ apps/d0lt-bot/             # the bot (Flue app)
 │  ├─ subagents/
 │  │  ├─ reviewer.ts(.md)    # PR review subagent profile + instructions
 │  │  └─ test-runner.ts(.md) # test runner subagent profile + instructions
-│  ├─ tools/
-│  │  └─ fetch-repo.ts      # shared: validates URL → safe clone command
 │  └─ lib/
-│     └─ github.ts          # URL parsing, ref validation, clone-script builder (shared)
+│     ├─ channel-flags.ts   # CHANNEL_<NAME>_ENABLE opt-in gating
+│     └─ observe.ts         # console observer for Flue events
 ├─ flue.config.ts
 ├─ tsconfig.json           # extends ../../tsconfig.base.json
 └─ package.json
@@ -260,8 +264,11 @@ apps/chat/                 # web chat UI (TanStack Start); proxies to the runner
 │  ├─ routes/             # TanStack file routes
 │  └─ server.ts            # same-origin /api/flue proxy → FLUE_RUNNER_URL
 └─ package.json
-packages/                  # shared packages (none yet)
-turbo.json                 # task pipeline (build / dev / typecheck)
+packages/
+├─ sandbox/                # @repo/sandbox — lazySandbox, resolveSandboxKind, node/cf adapters
+├─ github/                 # @repo/github — planDelivery, fetchRepoTool, commentOnIssue
+└─ slack/                  # @repo/slack  — planSlackEvent, replyInThread, toMrkdwn
+turbo.json                 # task pipeline (build / dev / typecheck / test)
 tsconfig.base.json         # shared TS compiler options
-docs/plans/                # design document
+docs/superpowers/          # design specs & implementation plans
 ```

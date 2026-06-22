@@ -1,18 +1,6 @@
-// Pure GitHub helpers shared by the workflows (which clone into a sandbox) and the
-// chat agent's bridge tools (which validate a URL before forwarding it to a workflow).
-// Nothing here touches a sandbox or the network — see the workflows for that.
-
-import { tmpdir } from "node:os";
-
-/**
- * An isolated per-run working directory for a clone. Flue's `local()` sandbox
- * runs on the host, so each workflow run gets its own scratch dir keyed by the
- * run id (an alphanumeric ULID) under the OS temp dir, never the project dir.
- */
-export function workDir(runId: string): string {
-  const safe = runId.replace(/[^A-Za-z0-9._-]/g, "");
-  return `${tmpdir()}/d0lt-bot/${safe || "run"}`;
-}
+// Pure GitHub URL/ref parsing and shell-safe clone-script assembly.
+// No sandbox or network access — values are validated here so they are safe
+// to interpolate into a shell command before being handed off to the caller.
 
 // Restrict owner/repo to GitHub's allowed characters so the values are always
 // safe to interpolate into a shell command (no shell metacharacters possible).

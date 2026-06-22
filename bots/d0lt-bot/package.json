@@ -14,15 +14,15 @@
     "deploy": "FLUE_SANDBOX=cloudflare flue build --target cloudflare && wrangler deploy --config dist/d0lt_bot/wrangler.json"
   },
   "dependencies": {
-    "@cloudflare/sandbox": "^0.12.1",
-    "@flue/github": "1.0.0-beta.1",
-    "@flue/runtime": "1.0.0-beta.2",
-    "@flue/slack": "1.0.0-beta.1",
-    "@octokit/rest": "^22.0.1",
-    "@slack/web-api": "8.0.0-rc.1",
+    "@cloudflare/sandbox": "catalog:cf",
+    "@flue/github": "catalog:flue",
+    "@flue/runtime": "catalog:flue",
+    "@flue/slack": "catalog:flue",
+    "@repo/github": "workspace:*",
+    "@repo/sandbox": "workspace:*",
+    "@repo/slack": "workspace:*",
     "agents": "^0.16.2",
-    "hono": "^4.12.22",
-    "valibot": "^1.4.1"
+    "hono": "^4.12.22"
   },
   "devDependencies": {
     "@flue/cli": "1.0.0-beta.1",

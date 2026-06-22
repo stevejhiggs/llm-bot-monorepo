@@ -5,14 +5,14 @@
 // handler below sees only authentic, non-challenge deliveries.
 //
 // Thin by design: the branching logic and the outbound reply tool live in
-// ../lib/slack-events.ts (unit-tested there). Here we only build the channel and
+// `@repo/slack` (unit-tested there). Here we only build the channel and
 // bridge verified events to the d0lt-bot agent via dispatch().
 
 import { dispatch } from "@flue/runtime";
 import { createSlackChannel } from "@flue/slack";
 import d0ltBot from "../agents/d0lt-bot.ts";
 import { channelEnabled } from "../lib/channel-flags.ts";
-import { planSlackEvent } from "../lib/slack-events.ts";
+import { planSlackEvent } from "@repo/slack";
 
 // Opt-in via CHANNEL_SLACK_ENABLE. Flue discovers every channels/*.ts and requires a
 // valid `channel` export, so a disabled channel can't be omitted — instead it
@@ -46,4 +46,4 @@ export const channel = createSlackChannel({
   },
 });
 
-export { replyInThread } from "../lib/slack-events.ts";
+export { replyInThread } from "@repo/slack";
