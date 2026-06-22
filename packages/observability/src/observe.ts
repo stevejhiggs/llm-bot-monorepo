@@ -11,13 +11,34 @@
 // test drives the observer with a fake sink — matching the injected-client
 // pattern used across the `@repo/*` packages.
 
-import type { FlueEvent, FlueEventSubscriber } from "@flue/runtime";
+import type { FlueContext, FlueEvent, FlueEventSubscriber } from "@flue/runtime";
 
 /** The console methods this observer uses; `console` satisfies it structurally. */
 export interface LogSink {
   info(message: string, fields?: Record<string, unknown>): void;
   warn(message: string, fields?: Record<string, unknown>): void;
   error(message: string, fields?: Record<string, unknown>): void;
+}
+
+export interface MetricPoint {
+  name: string;
+  count: number;
+  durationMs?: number;
+  tokens?: number;
+  costUsd?: number;
+  dimensions: Record<string, string>;
+}
+
+export interface MetricSink {
+  write(point: MetricPoint, ctx: FlueContext): void;
+}
+
+export interface AnalyticsEngineDatasetLike {
+  writeDataPoint(event?: {
+    indexes?: ((ArrayBuffer | string) | null)[];
+    doubles?: number[];
+    blobs?: ((ArrayBuffer | string) | null)[];
+  }): void;
 }
 
 // Operations slower than this are surfaced at warn so a stuck clone/test run is
@@ -54,6 +75,47 @@ function ref(event: FlueEvent): Record<string, unknown> {
     dispatch: event.dispatchId,
     operationId: event.operationId,
   };
+}
+
+function dimensionFields(fields: Record<string, unknown>): Record<string, string> {
+  const dimensions: Record<string, string> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined || value === null) continue;
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      dimensions[key] = String(value);
+    }
+  }
+  return dimensions;
+}
+
+function metricRef(event: FlueEvent): Record<string, string> {
+  return dimensionFields({
+    instance: event.instanceId,
+    dispatch: event.dispatchId,
+    operationId: event.operationId,
+  });
+}
+
+function outcome(isError: boolean): string {
+  return isError ? "failure" : "success";
+}
+
+function usageFields(
+  usage: { totalTokens?: number; cost?: { total?: number } } | undefined,
+): Pick<MetricPoint, "tokens" | "costUsd"> {
+  return {
+    tokens: usage?.totalTokens,
+    costUsd: usage?.cost?.total,
+  };
+}
+
+function isAnalyticsEngineDataset(value: unknown): value is AnalyticsEngineDatasetLike {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "writeDataPoint" in value &&
+    typeof value.writeDataPoint === "function"
+  );
 }
 
 /**
@@ -166,6 +228,190 @@ export function createConsoleObserver(sink: LogSink = console): FlueEventSubscri
 
       default:
         return;
+    }
+  };
+}
+
+export function createMetricsObserver(sink: MetricSink): FlueEventSubscriber {
+  return (event, ctx) => {
+    switch (event.type) {
+      case "submission_settled":
+        sink.write(
+          {
+            name: "flue.submission",
+            count: 1,
+            dimensions: {
+              outcome: event.outcome === "failed" ? "failure" : "success",
+              submissionId: event.submissionId,
+              ...metricRef(event),
+            },
+          },
+          ctx,
+        );
+        return;
+
+      case "operation":
+        sink.write(
+          {
+            name: "flue.operation",
+            count: 1,
+            durationMs: event.durationMs,
+            ...usageFields(event.usage),
+            dimensions: {
+              kind: event.operationKind,
+              outcome: outcome(event.isError),
+              ...metricRef(event),
+            },
+          },
+          ctx,
+        );
+        return;
+
+      case "turn":
+        sink.write(
+          {
+            name: "flue.turn",
+            count: 1,
+            durationMs: event.durationMs,
+            ...usageFields(event.usage),
+            dimensions: {
+              outcome: outcome(event.isError),
+              ...dimensionFields({
+                model: event.model,
+                provider: event.provider,
+                api: event.api,
+                stopReason: event.stopReason,
+              }),
+              ...metricRef(event),
+            },
+          },
+          ctx,
+        );
+        return;
+
+      case "tool":
+        sink.write(
+          {
+            name: "flue.tool",
+            count: 1,
+            durationMs: event.durationMs,
+            dimensions: {
+              tool: event.toolName,
+              outcome: outcome(event.isError),
+              ...metricRef(event),
+            },
+          },
+          ctx,
+        );
+        return;
+
+      case "task":
+        sink.write(
+          {
+            name: "flue.task",
+            count: 1,
+            durationMs: event.durationMs,
+            dimensions: {
+              outcome: outcome(event.isError),
+              ...dimensionFields({ agent: event.agent }),
+              ...metricRef(event),
+            },
+          },
+          ctx,
+        );
+        return;
+
+      case "compaction":
+        sink.write(
+          {
+            name: "flue.compaction",
+            count: 1,
+            durationMs: event.durationMs,
+            ...usageFields(event.usage),
+            dimensions: {
+              outcome: outcome(event.isError),
+              ...metricRef(event),
+            },
+          },
+          ctx,
+        );
+        return;
+
+      case "log":
+        sink.write(
+          {
+            name: "flue.log",
+            count: 1,
+            dimensions: {
+              ...dimensionFields(event.attributes ?? {}),
+              level: event.level,
+              ...metricRef(event),
+            },
+          },
+          ctx,
+        );
+        return;
+
+      case "run_end":
+        sink.write(
+          {
+            name: "flue.run",
+            count: 1,
+            durationMs: event.durationMs,
+            dimensions: {
+              outcome: outcome(event.isError),
+              runId: event.runId,
+              ...metricRef(event),
+            },
+          },
+          ctx,
+        );
+        return;
+
+      default:
+        return;
+    }
+  };
+}
+
+export function createAnalyticsEngineMetricsSink(bindingName = "OBSERVABILITY"): MetricSink {
+  return {
+    write(point, ctx) {
+      const dataset = (ctx.env as Record<string, unknown>)[bindingName];
+      if (!isAnalyticsEngineDataset(dataset)) return;
+
+      const dimensions = point.dimensions;
+      const primary =
+        dimensions.kind ?? dimensions.tool ?? dimensions.agent ?? dimensions.model ?? "";
+      dataset.writeDataPoint({
+        indexes: [point.name],
+        blobs: [
+          point.name,
+          dimensions.outcome ?? "",
+          primary,
+          dimensions.level ?? "",
+          dimensions.channel ?? "",
+          dimensions.instance ?? "",
+          dimensions.dispatch ?? "",
+          dimensions.operationId ?? "",
+        ],
+        doubles: [point.count, point.durationMs ?? 0, point.tokens ?? 0, point.costUsd ?? 0],
+      });
+    },
+  };
+}
+
+export function createCompositeObserver(...observers: FlueEventSubscriber[]): FlueEventSubscriber {
+  return (event, ctx) => {
+    const pending: Promise<void>[] = [];
+    for (const observer of observers) {
+      const result = observer(event, ctx);
+      if (result instanceof Promise) {
+        pending.push(result);
+      }
+    }
+    if (pending.length > 0) {
+      return Promise.all(pending).then(() => undefined);
     }
   };
 }

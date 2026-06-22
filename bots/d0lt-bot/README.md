@@ -128,6 +128,25 @@ pnpm deploy                               # build:cf + wrangler deploy
 pinned to the installed `@cloudflare/sandbox` version. Durable Object migrations are append-only —
 never reorder or rewrite deployed entries.
 
+## Production observability
+
+The bot registers Flue observers from [`src/app.ts`](src/app.ts) before mounting the generated Flue
+routes. In production this produces two telemetry streams:
+
+- **Workers Logs / traces** — `wrangler.jsonc` enables Cloudflare-native persisted logs and traces.
+  The console observer records failures, slow operations, and one-line activity breadcrumbs with
+  `instance`, `dispatch`, and `operationId` correlation fields.
+- **Workers Analytics Engine metrics** — the `OBSERVABILITY` Analytics Engine binding writes one
+  bounded point per completed Flue operation/tool/task/turn/submission/compaction/run and per
+  application log event. Points include counts, durations, token totals, cost totals, and safe
+  dimensions; they intentionally exclude prompts, model output, shell output, tool results, raw
+  errors, and secrets.
+
+Alerting and long-term export are configured in Cloudflare, not in this repo. Recommended production
+alerts: webhook 5xx rate, tool/task failure rate, model turn failure rate, operations over 30s,
+sandbox/container failures, and token/cost spikes. For external retention or dashboards, configure
+Cloudflare OTLP export or Workers Logpush for the deployed Worker.
+
 ## Configuration
 
 | Variable                | Required    | Purpose                                                                                 |

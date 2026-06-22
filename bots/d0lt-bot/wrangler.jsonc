@@ -22,6 +22,13 @@
   "durable_objects": {
     "bindings": [{ "class_name": "Sandbox", "name": "Sandbox" }],
   },
+  // Custom production metrics for Flue activity. The observer writes one
+  // bounded point per completed operation/tool/task/turn/etc. through the
+  // OBSERVABILITY binding; local node runs skip this sink because the binding is
+  // absent.
+  "analytics_engine_datasets": [
+    { "binding": "OBSERVABILITY", "dataset": "d0lt_bot_observability" },
+  ],
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["FlueRegistry", "FlueD0ltBotAgent"] },
     { "tag": "v2", "new_sqlite_classes": ["Sandbox"] },
