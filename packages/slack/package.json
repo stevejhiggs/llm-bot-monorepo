@@ -6,7 +6,8 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
-    }
+    },
+    "./instructions.md": "./src/instructions.md"
   },
   "scripts": {
     "test": "vitest run",

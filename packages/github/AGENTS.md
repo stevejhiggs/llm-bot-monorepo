@@ -15,8 +15,14 @@ src/
 ├─ github-webhook.ts   # planDelivery(), commentOnIssue(), Octokit client + types
 ├─ github-channel.ts   # createGitHubBotChannel() — builds the Flue channel
 ├─ fetch-repo.ts       # the fetch_repo Flue tool (default export → re-exported as fetchRepoTool)
+├─ instructions.md     # the agent's "When the turn comes from GitHub" prompt fragment (see below)
 └─ github-webhook.test.ts
 ```
+
+`instructions.md` is the GitHub-specific section of the agent's prompt, exposed via the package's
+`exports` map (`"./instructions.md"`) and imported by the bot with `with { type: "markdown" }`.
+Keeping it here puts the prose describing `comment_on_github_issue` and the GitHub event shape next
+to the channel it documents. See the root AGENTS.md "Source-dependent prompt".
 
 ## Public API
 

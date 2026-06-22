@@ -51,7 +51,7 @@ Tests are pure and offline — no network, no live Flue runtime. Channel logic i
 the pure `plan*()` functions directly and invoking the outbound tools with an **injected fake
 client** (Octokit/WebClient). Follow that pattern for new channels; do not require the agent graph
 in a test (the agent imports markdown via `with { type: "markdown" }`, which Vitest's loader does
-not resolve without the Flue plugin — that is why testable logic lives in the `@repo/*` packages (and the bot's `lib/channel-flags.ts`), not in `channels/` or the agent graph).
+not resolve without the Flue plugin — that is why testable logic lives in the `@repo/*` packages (and the bot's `lib/` — `channel-flags.ts`, `conversation-source.ts`), not in `channels/` or the agent graph).
 
 ## Code style
 
@@ -151,10 +151,13 @@ Each integration is split into two files for a specific reason — keep the spli
   never imports the agent. See [`packages/github/AGENTS.md`](packages/github/AGENTS.md) /
   [`packages/slack/AGENTS.md`](packages/slack/AGENTS.md) for each package's contracts.
 
-The agent's `conversationTools(id)` tries each channel's `parseConversationKey(id)` in turn and
-returns `{ router, subagent }` tool lists (chat ids parse as no channel → both empty). Outbound
-tools take only the message body/text from the model; the destination (issue/thread) is fixed at
-bind time from the verified delivery, so the model cannot redirect a post.
+The agent classifies each turn's source once with `resolveConversationSource(id, parsers)`
+(`lib/conversation-source.ts`) — it tries each channel's `parseConversationKey(id)` in turn and
+returns `"github" | "slack" | "chat"` (chat ids parse as no channel → `"chat"`). Both the prompt
+(see "Source-dependent prompt") and `conversationTools(id, source)`'s `{ router, subagent }` tool
+lists derive from that one decision. Outbound tools take only the message body/text from the model;
+the destination (issue/thread) is fixed at bind time from the verified delivery, so the model cannot
+redirect a post.
 
 `subagent` is for tools a channel turn needs to give the **subagents**, not just the router. Slack
 uses it for `post_slack_progress`: the subagents post phase milestones (cloning/installing, running
@@ -163,11 +166,24 @@ tests) while the router is blocked on its `task`. The subagent profiles are ther
 not static profiles. The router posts the opening ack and the final reply; the final reply runs the
 model's markdown through `toMrkdwn` (from `@repo/slack`) because Slack renders mrkdwn, not GFM.
 
+### Source-dependent prompt
+
+The agent's instructions are composed per turn, not static: a channel-agnostic **base**
+(`src/agents/d0lt-bot.md` — the subagent routing + notes) plus the **fragment** for the turn's
+source. Each channel package owns its fragment as a markdown file (`packages/<name>/src/instructions.md`,
+exposed via the package's `exports` map as `"./instructions.md"`) imported with
+`with { type: "markdown" }`; the bot maps `source → fragment` in `INSTRUCTION_FRAGMENTS` and appends
+the one selected (chat → base alone). So the model sees only the section for where the turn came
+from, and a channel's prose lives next to its tools. The `*.md` import type comes from
+`@flue/runtime`'s global ambient `declare module '*.md'`, so package-subpath imports type-check
+without extra `.d.ts` — but the markdown **loader** resolving a package `.md` is confirmed only by
+`pnpm build` / `build:cf`, so run both when touching this.
+
 To add a channel end to end: add the package's channel factory + testable logic, create the thin
 shim above (gate it with `channelEnabled("<name>")`, pass the resolved secret + `agentName`), add a
-branch to `conversationTools(id)`, add a "When the turn comes from <X>" section to
-`src/agents/d0lt-bot.md`, and document its enable flag + secrets in `.env.example`, `.dev.vars`, and
-`README.md`.
+branch to `conversationTools(id, source)` **and** to `resolveConversationSource` /
+`INSTRUCTION_FRAGMENTS`, add the package's `src/instructions.md` fragment (and its `exports` entry),
+and document its enable flag + secrets in `.env.example`, `.dev.vars`, and `README.md`.
 
 ### No channel ⇄ agent import cycle
 

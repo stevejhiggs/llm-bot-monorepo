@@ -16,9 +16,15 @@ src/
 │                       #   WebClient + types
 ├─ slack-format.ts      # toMrkdwn() — GitHub-flavored markdown → Slack mrkdwn (pure)
 ├─ slack-channel.ts     # createSlackBotChannel() — constructs the Flue channel for the bot's shim
+├─ instructions.md      # the agent's "When the turn comes from Slack" prompt fragment (see below)
 ├─ slack-events.test.ts
 └─ slack-format.test.ts
 ```
+
+`instructions.md` is the Slack-specific section of the agent's prompt, exposed via the package's
+`exports` map (`"./instructions.md"`) and imported by the bot with `with { type: "markdown" }`.
+Keeping it here puts the prose describing `reply_in_slack_thread` / `post_slack_progress` /
+`threadContext` next to the tools it documents. See the root AGENTS.md "Source-dependent prompt".
 
 ## Public API
 

@@ -5,9 +5,22 @@ import { channel as slackChannel } from "../channels/slack.ts";
 import { channelEnabled } from "../lib/channel-flags.ts";
 import { commentOnIssue } from "@repo/github";
 import { postProgressInThread, replyInThread } from "@repo/slack";
-import instructions from "./d0lt-bot.md" with { type: "markdown" };
+import baseInstructions from "./d0lt-bot.md" with { type: "markdown" };
+import githubInstructions from "@repo/github/instructions.md" with { type: "markdown" };
+import slackInstructions from "@repo/slack/instructions.md" with { type: "markdown" };
+import { type ConversationSource, resolveConversationSource } from "../lib/conversation-source.ts";
 import { createReviewer } from "../subagents/reviewer.ts";
 import { createTestRunner } from "../subagents/test-runner.ts";
+
+// The base prompt applies to every turn; a channel turn additionally gets its
+// channel's fragment appended, so the model sees only the section for where the turn
+// came from (chat gets the base alone). The fragment lives in the channel's package
+// (alongside its tools), keeping everything about a channel in one place.
+const INSTRUCTION_FRAGMENTS: Record<ConversationSource, string> = {
+  github: githubInstructions,
+  slack: slackInstructions,
+  chat: "",
+};
 
 // What a turn's conversation id resolves to: the router's own outbound tools, plus
 // any tools to inject into the subagents. Slack is the only channel that gives
@@ -18,26 +31,31 @@ interface ConversationTools {
   subagent: ToolDefinition[];
 }
 
+// The channels' parseConversationKey methods, wrapped so `this` stays bound when
+// passed to resolveConversationSource. Both the source classification and the tools
+// below derive from these — the single place the agent reaches into the channels.
+const parsers = {
+  github: (id: string) => githubChannel.parseConversationKey(id),
+  slack: (id: string) => slackChannel.parseConversationKey(id),
+};
+
 // A turn can arrive from chat (id "local"), from the GitHub channel, or from the
 // Slack channel. For a channel turn, the instance id is that channel's conversation
 // key and parses back to its bound destination — so the agent gets outbound tools
-// fixed to that issue/PR or thread. Chat ids aren't keys and every parse throws,
-// leaving chat sessions with no channel tool. Read inside the deferred initializer
+// fixed to that issue/PR or thread. Chat ids aren't keys, so they resolve to "chat"
+// and get no channel tool. `source` is classified once by resolveConversationSource,
+// so here we parse only the matching channel. Called inside the deferred initializer
 // to keep the channel ⇄ agent import cycles safe.
-function conversationTools(id: string): ConversationTools {
-  try {
-    return { router: [commentOnIssue(githubChannel.parseConversationKey(id))], subagent: [] };
-  } catch {
-    // not a GitHub conversation key
+function conversationTools(id: string, source: ConversationSource): ConversationTools {
+  if (source === "github") {
+    return { router: [commentOnIssue(parsers.github(id))], subagent: [] };
   }
-  try {
-    const ref = slackChannel.parseConversationKey(id);
+  if (source === "slack") {
+    const ref = parsers.slack(id);
     const progress = postProgressInThread(ref);
     // The router posts the opening ack and the final reply; the subagent posts the
     // phase milestones in between (the router is blocked on the task while it runs).
     return { router: [replyInThread(ref), progress], subagent: [progress] };
-  } catch {
-    // not a Slack conversation key
   }
   return { router: [], subagent: [] };
 }
@@ -78,7 +96,11 @@ export default createAgent(async ({ id, env }) => {
           secrets: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },
         });
 
-  const { router, subagent } = conversationTools(id);
+  // Classify the turn's source once, then derive both the prompt fragment and the
+  // outbound tool set from it.
+  const source = resolveConversationSource(id, parsers);
+  const { router, subagent } = conversationTools(id, source);
+  const instructions = [baseInstructions, INSTRUCTION_FRAGMENTS[source]].filter(Boolean).join("\n");
 
   return {
     model: "anthropic/claude-sonnet-4-6",
