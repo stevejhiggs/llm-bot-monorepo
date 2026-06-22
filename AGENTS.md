@@ -5,9 +5,9 @@ human-oriented overview; this file is the agent-facing technical companion.
 
 ## Project overview
 
-A proof-of-concept GitHub assistant built on the [Flue](https://flueframework.com/) agent
-framework, ported from the eve-based `d0lt-bot`. It reviews pull requests and runs repositories'
-tests inside a sandbox, and can be driven from chat, GitHub comments, or Slack.
+A GitHub assistant built on the [Flue](https://flueframework.com/) agent framework. It reviews pull
+requests and runs repositories' tests inside a sandbox, and can be driven from chat, GitHub
+comments, or Slack.
 
 - **Monorepo:** Turborepo. Bots (Flue runners) live under `bots/`; supporting apps live under
   `apps/`. Root scripts fan out via `turbo`. `bots/d0lt-bot` is the first bot — the Flue runner
@@ -109,9 +109,10 @@ route. **All three entry points are opt-in** via `CHANNEL_<NAME>_ENABLE` env var
   absent from `openapi.json`. The shipped handler is an unauthenticated pass-through; add auth
   before enabling in prod.
 - **GitHub / Slack** — Flue's file-based discovery requires each `channels/*.ts` to export a valid
-  `channel`, so a disabled channel can't be removed; it constructs with a placeholder secret (no
-  real secret needed to boot) and its handler ignores every delivery, leaving the route mounted but
-  inert. Enabling it requires the real secret (`createXChannel` throws on an empty one).
+  `channel`, so a disabled channel can't be removed; the shim still calls its factory but passes
+  `enabled: false` and no secret, so the factory constructs with a placeholder secret (no real
+  secret needed to boot) and its handler ignores every delivery, leaving the route mounted but
+  inert. Enabling it requires the real secret (the factory throws on an empty one when enabled).
 
 The router owns the sandbox and delegates to two **subagents** (`reviewer`, `test_runner` under
 `src/subagents/`) via Flue's built-in `task` capability. Subagents never clone directly: the
@@ -128,25 +129,26 @@ dynamic `import()` — `@repo/sandbox/node` (host `local()` sandbox, dev default
 and the workerd build (`build:cf`) fails otherwise. The bot passes a `secrets` record
 (`{ GITHUB_TOKEN }`) at construction; the sandbox injects it before the first clone.
 
-The sandbox mechanism itself — the lazy-provisioning guarantee, the bundle-split rule, the
-node/cloudflare adapters, the `secrets` injection, and `workDir` — lives in **`@repo/sandbox`**.
-Read [`packages/sandbox/AGENTS.md`](packages/sandbox/AGENTS.md) before changing any of it, and
-remember the gate for sandbox changes is **both** `pnpm build` and `pnpm --filter d0lt-bot build:cf`.
+The mechanism (lazy provisioning, the bundle split, the adapters, `secrets`, `workDir`) lives in
+**[`@repo/sandbox`](packages/sandbox/AGENTS.md)** — read it before changing any of it. The gate for
+sandbox changes is **both** `pnpm build` and `pnpm --filter d0lt-bot build:cf`.
 
 ### Channel pattern (follow this when adding a channel)
 
 Each integration is split into two files for a specific reason — keep the split:
 
-- **Thin discovered channel** `src/channels/<name>.ts` — constructs the channel
-  (`createGitHubChannel` / `createSlackChannel`), and its handler calls the plan function then
-  `dispatch(d0ltBot, { id: channel.conversationKey(plan.ref), input: plan.input })`. Flue
-  auto-discovers `channels/*.ts` and serves each under `/channels/<name>/...`; every file there
-  **must** export a `channel`. Do not put helpers in `channels/`.
-- **Testable logic** lives in the channel's package — `@repo/github` (webhooks) / `@repo/slack`
-  (events): the outbound API client, a pure `plan*()` function (verified delivery →
-  `{ ref, input } | null`), and the outbound tool factory (`commentOnIssue` / `replyInThread`). The
-  thin channel imports these from the package. See
-  [`packages/github/AGENTS.md`](packages/github/AGENTS.md) /
+- **Thin discovered channel** `src/channels/<name>.ts` — a shim that calls the package's channel
+  factory (`createGitHubBotChannel` / `createSlackBotChannel`) with the bot-owned values (the
+  `channelEnabled("<name>")` flag, the resolved secret, the `agentName`, any config) and exports the
+  result as `channel`. Flue auto-discovers `channels/*.ts` and serves each under
+  `/channels/<name>/...`; every file there **must** export a `channel`. Do not put helpers — or the
+  construction/dispatch logic — in `channels/`.
+- **Testable logic + channel construction** live in the channel's package — `@repo/github`
+  (webhooks) / `@repo/slack` (events): the outbound API client, a pure `plan*()` function (verified
+  delivery → `{ ref, input } | null`), the outbound tool factory (`commentOnIssue` / `replyInThread`),
+  and the **channel factory** that builds the Flue channel and wires `plan*()` → `dispatch`. The
+  factory dispatches to the agent **by name** (`dispatch({ agent: agentName, ... })`), so the shim
+  never imports the agent. See [`packages/github/AGENTS.md`](packages/github/AGENTS.md) /
   [`packages/slack/AGENTS.md`](packages/slack/AGENTS.md) for each package's contracts.
 
 The agent's `conversationTools(id)` tries each channel's `parseConversationKey(id)` in turn and
@@ -161,47 +163,41 @@ tests) while the router is blocked on its `task`. The subagent profiles are ther
 not static profiles. The router posts the opening ack and the final reply; the final reply runs the
 model's markdown through `toMrkdwn` (from `@repo/slack`) because Slack renders mrkdwn, not GFM.
 
-To add a channel end to end: create the two files above, gate the channel with
-`channelEnabled("<name>")` (placeholder secret + early-return when disabled), add a branch to
-`conversationTools(id)`, add a "When the turn comes from <X>" section to `src/agents/d0lt-bot.md`,
-and document its enable flag + secrets in `.env.example`, `.dev.vars`, and `README.md`.
+To add a channel end to end: add the package's channel factory + testable logic, create the thin
+shim above (gate it with `channelEnabled("<name>")`, pass the resolved secret + `agentName`), add a
+branch to `conversationTools(id)`, add a "When the turn comes from <X>" section to
+`src/agents/d0lt-bot.md`, and document its enable flag + secrets in `.env.example`, `.dev.vars`, and
+`README.md`.
 
-### Channel ⇄ agent import cycle
+### No channel ⇄ agent import cycle
 
-Channels import the agent (to `dispatch`) and the agent imports the channels (for
-`parseConversationKey`). This cycle is safe **only because every cross-module binding is read
-inside a deferred callback/initializer** (the channel's handler, the agent's `createAgent`
-callback), never at module-eval time. Keep new cross-references deferred.
+The agent imports the channels (for `parseConversationKey`), but the channels do **not** import the
+agent: the channel factory dispatches by discovered name (`dispatch({ agent: agentName, ... })`)
+rather than by an imported agent reference. That keeps the edge one-directional
+(agent → channel), so there is no import cycle to reason about. Don't reintroduce one — never import
+the agent from a `channels/*.ts` shim or from a channel package; dispatch by name instead.
 
 ### Secrets and startup
 
-Channels are constructed at module load and `createGitHubChannel`/`createSlackChannel` throw on an
-empty secret — but only an **enabled** channel passes its real secret (a disabled one constructs
-with a placeholder), so the app needs the secret for each channel you turn on, and nothing for the
-ones you leave off. On Cloudflare, secrets/vars are read via `process.env` (supported under the
-`nodejs_compat` flag + the recent `compatibility_date` in `wrangler.jsonc`). `GITHUB_TOKEN` is
-injected into the sandbox env and referenced by name as
-`$GITHUB_TOKEN` in the clone script — it never enters the model's context. See `.env.example` for
-the full list.
+The channel factories throw on an empty secret, but only an **enabled** channel is passed its real
+secret by the shim (a disabled one is passed `undefined` and the factory substitutes a placeholder),
+so the app needs a secret only for the channels you turn on. The bot resolves every secret/config
+value from `process.env` in the shim and passes it in; the channel packages never read the
+environment. On Cloudflare, secrets/vars are read via `process.env` (under the `nodejs_compat` flag
++ the `compatibility_date` in `wrangler.jsonc`). `GITHUB_TOKEN` is injected into the sandbox env and
+referenced by name as `$GITHUB_TOKEN` in the clone script — it never enters the model's context. See
+`.env.example` for the full list.
 
 ### Observability (`src/app.ts` + `@repo/observability`)
 
-Flue emits no telemetry on its own — you must register an observer. `src/app.ts` is the authored
-application entrypoint (Flue generates a default when it's absent); we author it for one reason: to
-call `observe(createConsoleObserver())` at module-eval time, before any request/alarm delivers work.
-It otherwise mounts `flue()` at `/` exactly like the default, so routing is unchanged — keep that
-mount if you edit it. `createConsoleObserver` is the **testable** half (mirroring the channel
-split), and lives in **[`@repo/observability`](packages/observability/AGENTS.md)**: a pure
-`createConsoleObserver(sink = console)` that turns the `observe(...)` event stream
-([events reference](https://flueframework.com/docs/api/events-reference/)) into structured console
-logs — failures (`submission_settled` failed, `operation`/`turn`/`tool`/`task` `isError`), slow
-operations, and a one-line-per-step activity trail; it ignores streaming deltas. The sink is injected
-so the unit test drives it with a fake.
+Flue emits no telemetry on its own — you must register an observer. `src/app.ts` calls
+`observe(createConsoleObserver())` at module-eval time (before any request/alarm delivers work) and
+mounts `flue()` at `/` — keep that mount if you edit it. The observer projection lives in
+**[`@repo/observability`](packages/observability/AGENTS.md)**.
 
-This is deliberately a **console** sink, not OpenTelemetry: on Cloudflare the lines land in Workers
+It is deliberately a **console** sink, not OpenTelemetry: on Cloudflare the lines land in Workers
 Logs (gated by `observability.enabled: true` in `wrangler.jsonc`), queryable in the dashboard, with
-no external backend. For rich OTLP traces (per-model-turn cost, tool spans) to an external backend,
-add `@flue/opentelemetry` + a workerd-compatible SDK/exporter — see Flue's OpenTelemetry guide.
+no external backend. For rich OTLP traces, add `@flue/opentelemetry` + a workerd-compatible exporter.
 
 ### The chat web app (`apps/chat`)
 

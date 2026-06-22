@@ -1,10 +1,10 @@
 # AGENTS.md — @repo/slack
 
 Agent-facing companion for `@repo/slack`. See [`README.md`](README.md) for the human overview.
-This package holds the Slack logic that must be unit-testable in isolation: Events API decision
-logic, the outbound reply/progress tools, and the GFM → mrkdwn converter. It does not construct or
-own a Flue channel — the bot's discovered `bots/d0lt-bot/src/channels/slack.ts` does that and
-imports from here.
+Slack logic that is unit-testable in isolation: Events API decision logic, the outbound
+reply/progress tools, the GFM → mrkdwn converter, and the channel factory. The bot's discovered
+`channels/slack.ts` is a thin shim that calls `createSlackBotChannel` with bot-owned values
+(enablement, the resolved signing secret, the agent name).
 
 ## What's in here
 
@@ -14,6 +14,7 @@ src/
 ├─ slack-events.ts      # planSlackEvent(), replyInThread(), postProgressInThread(),
 │                       #   workerdSafeFetch(), WebClient + types
 ├─ slack-format.ts      # toMrkdwn() — GitHub-flavored markdown → Slack mrkdwn (pure)
+├─ slack-channel.ts     # createSlackBotChannel() — constructs the Flue channel for the bot's shim
 ├─ slack-events.test.ts
 └─ slack-format.test.ts
 ```
@@ -31,6 +32,12 @@ From `slack-events.ts`:
 
 From `slack-format.ts`:
 - `toMrkdwn(markdown: string): string` — pure GFM → mrkdwn conversion.
+
+From `slack-channel.ts`:
+- `createSlackBotChannel(options): SlackChannel` — builds the Flue channel. `options` is
+  `{ enabled, signingSecret?, agentName }`; the package reads no env. The handler runs
+  `planSlackEvent` then dispatches by name (`dispatch({ agent: agentName, ... })`).
+- type `SlackBotChannelOptions`.
 
 ## Contracts (do not break these)
 
@@ -62,18 +69,21 @@ unit-tested without a network.
 
 Slack renders mrkdwn, not GFM: single-asterisk bold, `<url|text>` links, no tables. The converter
 masks fenced/inline code first (so a `**` inside code stays literal), degrades tables to bullet
-lines, then rewrites bold/italic/strike/headings/bullets/links. It is a pragmatic, lossy converter —
-not a full markdown engine. Don't grow it into one; if a construct renders acceptably in Slack
-already, leave it.
+lines, then rewrites bold/italic/strike/headings/bullets/links. It is a pragmatic, lossy converter,
+not a full markdown engine — don't grow it into one.
+
+### 5. The channel dispatches by name, never by an agent import
+
+`createSlackBotChannel` dispatches with `dispatch({ agent: agentName, ... })`, so the shim has no
+import edge to the agent (the agent imports `channel` for `parseConversationKey`, one-directional).
+Don't import the agent into a channel.
 
 ## How the bot consumes it
 
-`bots/d0lt-bot/src/channels/slack.ts` (thin, Flue-discovered) imports `planSlackEvent` and, on a
-verified event, dispatches `{ id: conversationKey(plan.ref), input: plan.input }` to the agent. It
-re-exports `replyInThread`; the agent binds it (and `postProgressInThread`) per conversation. The
-router posts the opening ack and the final reply (running the model's markdown through `toMrkdwn`);
-the subagents post the progress milestones in between. The channel file stays in the bot because
-Flue's discovery requires `channels/*.ts` there and it imports the agent to `dispatch()`.
+`channels/slack.ts` calls `createSlackBotChannel(...)` and exports the result as `channel`. The
+agent binds `replyInThread` and `postProgressInThread` per conversation: the router posts the
+opening ack and the final reply (through `toMrkdwn`), and the subagents post progress milestones in
+between.
 
 ## Dependencies
 

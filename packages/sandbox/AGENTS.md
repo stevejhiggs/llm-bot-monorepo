@@ -1,9 +1,9 @@
 # AGENTS.md — @repo/sandbox
 
 Agent-facing companion for `@repo/sandbox`. See [`README.md`](README.md) for the human overview.
-This package is the runtime-selected, lazily-provisioned execution sandbox shared by the bots under
-`bots/`. It depends on nothing else in `packages/` (the DAG leaf) and knows nothing about GitHub,
-Slack, or any specific bot.
+The runtime-selected, lazily-provisioned execution sandbox shared by the bots under `bots/`. A DAG
+leaf: it depends on nothing else in `packages/` and knows nothing about GitHub, Slack, or any
+specific bot.
 
 ## What's in here
 
@@ -61,9 +61,7 @@ once, **before** the first shell/file op, and not at all if no such op happens:
 
 For this to hold, the adapters (`node.ts`, `cloudflare.ts`) must **construct a `SandboxFactory`
 without doing eager I/O** — just method closures + a known `cwd`. Keep all real work inside the
-`prepare` callback. The lazy behavior is unit-tested in `lazy-sandbox.test.ts`; the two adapters
-import target-specific deps and are intentionally **not** unit-tested directly (mirrored by
-`sandbox.test.ts` covering only the pure `resolveSandboxKind`).
+`prepare` callback.
 
 ### 3. Secrets are generic and injected before first use
 

@@ -51,11 +51,9 @@ can blow up log volume and stringify cost.
 
 ## How the bot consumes it
 
-A bot's `app.ts` is the authored application entrypoint (Flue generates a default when it's absent);
-it exists to call `observe(createConsoleObserver())` at module-eval time — before any request or
-alarm delivers work — and otherwise mounts `flue()` at `/` exactly like the default. `app.ts` stays
-in the bot because the `observe()` registration and the `flue()` mount are the bot's entrypoint
-concerns; only the observer projection lives here.
+A bot's `app.ts` calls `observe(createConsoleObserver())` at module-eval time — before any request
+or alarm delivers work — and mounts `flue()` at `/`. The `observe()` registration and the `flue()`
+mount are the bot's entrypoint concerns; only the observer projection lives here.
 
 ## Dependencies
 
