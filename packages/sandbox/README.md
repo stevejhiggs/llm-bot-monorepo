@@ -5,9 +5,9 @@ answers the two questions a bot has about running shell and filesystem work:
 
 - **Which sandbox?** `resolveSandboxKind()` chooses between a host-local sandbox (dev) and a
   Cloudflare Sandbox container (deployed), from the `FLUE_SANDBOX` env var or the runtime.
-- **When do we pay for it?** `lazySandbox()` defers the one-time expensive setup (a container boot,
-  or a scratch-dir `mkdir`) until the first shell/file operation — so a turn that never shells out
-  (a plain chat reply) never provisions a sandbox.
+- **When do we pay for it?** `lazySandbox()` defers the wrapped sandbox env creation and the
+  one-time expensive setup (a container boot, or a scratch-dir `mkdir`) until the first shell/file
+  operation — so a turn that never shells out (a plain chat reply) never provisions a sandbox.
 
 It is **source-only**: no build step. Consumers import the `.ts` directly via the package's
 `exports` (TypeScript resolves them through the workspace's `allowImportingTsExtensions` + `noEmit`).
@@ -16,7 +16,7 @@ It is **source-only**: no build step. Consumers import the `.ts` directly via th
 
 | Import | Exports |
 | --- | --- |
-| `@repo/sandbox` | `resolveSandboxKind(env, isWorkerd?)`, `lazySandbox(inner, prepare)`, `workDir(runId)`, type `SandboxKind` |
+| `@repo/sandbox` | `resolveSandboxKind(env, isWorkerd?)`, `lazySandbox(inner, prepare, { cwd })`, `workDir(runId)`, type `SandboxKind` |
 | `@repo/sandbox/node` | `createNodeSandbox({ id, appName, secrets? })` → `{ sandbox, cwd }` |
 | `@repo/sandbox/cloudflare` | `createCloudflareSandbox({ id, sandboxBinding, secrets? })` → `{ sandbox, cwd }` |
 
@@ -64,10 +64,12 @@ Object) instead of the host `local()` sandbox used in dev.
   sandbox's `setEnvVars`), so clones authenticate as `$GITHUB_TOKEN` at run time without the token
   entering the model's context — the same contract as local dev.
 - **Lazy provisioning.** Both targets wrap their sandbox in `lazySandbox()`, which defers the
-  one-time expensive setup — the container boot (`setEnvVars`) on Cloudflare, the scratch-dir
-  `mkdir` on node — until the first shell/file op. A turn that never shells out (a plain chat reply,
-  a Slack message that isn't a review/test request) never boots a container; a review/test turn boots
-  it just-in-time on its first command, with `GITHUB_TOKEN` injected first.
+  wrapped sandbox env creation and the one-time expensive setup — the container boot (`setEnvVars`)
+  on Cloudflare, the scratch-dir `mkdir` on node — until the first shell/file op. A turn that never
+  shells out (a plain chat reply, a Slack message that isn't a review/test request) never boots a
+  container; a review/test turn boots it just-in-time on its first command, with `GITHUB_TOKEN`
+  injected first. `cwd` and `resolvePath` stay cheap because the adapter supplies a base cwd to the
+  lazy wrapper.
 - **Not Cloudflare Shell.** This uses Cloudflare *Sandbox* (full Linux), not the `cloudflare-shell`
   adapter, which exposes only a code tool and can't run `git`/install/test commands.
 

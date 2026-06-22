@@ -37,6 +37,7 @@ catalogs:
 
   external:
     valibot: ^1.4.1
+    "@octokit/plugin-throttling": ^11.0.3
     "@octokit/rest": ^22.0.1
     "@slack/web-api": 8.0.0-rc.1
 

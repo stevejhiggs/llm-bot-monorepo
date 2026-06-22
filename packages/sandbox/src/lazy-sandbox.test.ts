@@ -35,9 +35,18 @@ function innerFactory(env: SessionEnv, tools?: SandboxFactory["tools"]): Sandbox
   return { createSessionEnv: () => Promise.resolve(env), tools };
 }
 
+test("does not create the inner env until an operation is performed", async () => {
+  const createSessionEnv = vi.fn(() => Promise.resolve(fakeEnv()));
+  const factory = lazySandbox({ createSessionEnv }, async () => {}, { cwd: "/workspace" });
+
+  await factory.createSessionEnv({ id: "abc" });
+
+  expect(createSessionEnv).not.toHaveBeenCalled();
+});
+
 test("does not run prepare until an operation is performed", async () => {
   const prepare = vi.fn(async () => {});
-  const factory = lazySandbox(innerFactory(fakeEnv()), prepare);
+  const factory = lazySandbox(innerFactory(fakeEnv()), prepare, { cwd: "/workspace" });
 
   await factory.createSessionEnv({ id: "abc" });
 
@@ -48,11 +57,15 @@ test("does not run prepare until an operation is performed", async () => {
 
 test("cwd and resolvePath answer without triggering prepare", async () => {
   const prepare = vi.fn(async () => {});
-  const env = await lazySandbox(innerFactory(fakeEnv()), prepare).createSessionEnv({ id: "abc" });
+  const createSessionEnv = vi.fn(() => Promise.resolve(fakeEnv()));
+  const env = await lazySandbox({ createSessionEnv }, prepare, {
+    cwd: "/workspace",
+  }).createSessionEnv({ id: "abc" });
 
   expect(env.cwd).toBe("/workspace");
   expect(env.resolvePath("repo")).toBe("/workspace/repo");
   expect(prepare).not.toHaveBeenCalled();
+  expect(createSessionEnv).not.toHaveBeenCalled();
 });
 
 test("runs prepare exactly once, before the first delegated operation", async () => {
@@ -60,9 +73,9 @@ test("runs prepare exactly once, before the first delegated operation", async ()
   const prepare = vi.fn(async () => {
     log.push("prepare");
   });
-  const env = await lazySandbox(innerFactory(fakeEnv(log)), prepare).createSessionEnv({
-    id: "abc",
-  });
+  const env = await lazySandbox(innerFactory(fakeEnv(log)), prepare, {
+    cwd: "/workspace",
+  }).createSessionEnv({ id: "abc" });
 
   const result = await env["exec"]("echo hi");
   await env.readFile("/etc/hosts");
@@ -78,5 +91,7 @@ test("runs prepare exactly once, before the first delegated operation", async ()
 
 test("preserves the inner factory's tools", () => {
   const tools = (() => []) as SandboxFactory["tools"];
-  expect(lazySandbox(innerFactory(fakeEnv(), tools), async () => {}).tools).toBe(tools);
+  expect(
+    lazySandbox(innerFactory(fakeEnv(), tools), async () => {}, { cwd: "/workspace" }).tools,
+  ).toBe(tools);
 });

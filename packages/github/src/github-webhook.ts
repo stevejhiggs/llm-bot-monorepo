@@ -5,12 +5,29 @@
 
 import { defineTool } from "@flue/runtime";
 import type { GitHubIssueRef, GitHubWebhookDelivery } from "@flue/github";
+import { throttling } from "@octokit/plugin-throttling";
 import { Octokit } from "@octokit/rest";
 import * as v from "valibot";
 
 // Outbound API client. Authenticated by the same GITHUB_TOKEN used for cloning, so
 // the bot comments as that account. Reused across tool instances.
-export const client = new Octokit({ auth: process.env.GITHUB_TOKEN });
+const ThrottledOctokit = Octokit.plugin(throttling);
+
+export const client = new ThrottledOctokit({
+  auth: process.env.GITHUB_TOKEN,
+  throttle: {
+    onRateLimit: (retryAfter, options, octokit, retryCount) => {
+      octokit.log.warn(`GitHub request quota exhausted for ${options.method} ${options.url}`);
+      if (retryCount < 1) {
+        octokit.log.info(`Retrying GitHub request after ${retryAfter} seconds`);
+        return true;
+      }
+    },
+    onSecondaryRateLimit: (_retryAfter, options, octokit) => {
+      octokit.log.warn(`GitHub secondary rate limit for ${options.method} ${options.url}`);
+    },
+  },
+});
 
 /** Where the agent should point a subagent, plus a ready-to-use GitHub URL. */
 export type DispatchTarget =

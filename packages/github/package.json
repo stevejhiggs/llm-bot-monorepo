@@ -21,6 +21,7 @@
   "dependencies": {
     "@flue/github": "catalog:flue",
     "@flue/runtime": "catalog:flue",
+    "@octokit/plugin-throttling": "catalog:external",
     "@octokit/rest": "catalog:external",
     "@repo/channel-registry": "workspace:*",
     "valibot": "catalog:external"

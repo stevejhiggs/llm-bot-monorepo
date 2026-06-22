@@ -22,11 +22,15 @@ export function createCloudflareSandbox({
   // secrets are injected before that first op, so $GITHUB_TOKEN clones still
   // authenticate. (getSandbox() SandboxOptions does not accept envVars; injection
   // is via the stub method after the stub is created.)
-  const sandbox = lazySandbox(cloudflareSandbox(stub), async () => {
-    // Skip undefined secrets, and skip setEnvVars entirely when none remain — an
-    // empty call would boot the container for nothing.
-    const defined = Object.entries(secrets ?? {}).filter(([, value]) => value != null);
-    if (defined.length > 0) await stub.setEnvVars(Object.fromEntries(defined));
-  });
+  const sandbox = lazySandbox(
+    cloudflareSandbox(stub),
+    async () => {
+      // Skip undefined secrets, and skip setEnvVars entirely when none remain — an
+      // empty call would boot the container for nothing.
+      const defined = Object.entries(secrets ?? {}).filter(([, value]) => value != null);
+      if (defined.length > 0) await stub.setEnvVars(Object.fromEntries(defined));
+    },
+    { cwd: "/" },
+  );
   return { sandbox, cwd: "/workspace" };
 }

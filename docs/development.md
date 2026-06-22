@@ -87,8 +87,9 @@ subagents. Final reply tools usually belong only to the router.
 2. Keep `packages/sandbox/src/index.ts` target-agnostic. It must not export node or
    Cloudflare adapters.
 3. Keep adapter imports behind dynamic imports in the consuming bot.
-4. Preserve lazy provisioning: constructing a sandbox factory should not boot a
-   container or do expensive I/O.
+4. Preserve lazy provisioning: constructing a sandbox factory, or creating its
+   session env, should not boot a container or do expensive I/O. The first async
+   shell/file operation should pay that cost.
 5. Run both bundle gates after changes:
 
 ```bash

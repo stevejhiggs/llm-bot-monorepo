@@ -1,7 +1,9 @@
 import type { GitHubWebhookDelivery } from "@flue/github";
+import { throttling } from "@octokit/plugin-throttling";
 import { Octokit } from "@octokit/rest";
 import { expect, test } from "vitest";
 import { commentOnIssue, planDelivery } from "./github-webhook.ts";
+import { client } from "./github-webhook.ts";
 
 const PHRASE = "@d0lt-bot";
 
@@ -100,6 +102,11 @@ test("unhandled events are ignored", () => {
 test("trigger-phrase match is case-insensitive", () => {
   const plan = planDelivery(issueComment({ isPr: true, body: "@D0LT-BOT please review" }), PHRASE);
   expect(plan).not.toBeNull();
+});
+
+test("shared GitHub client has throttling enabled", () => {
+  const plugins = (client.constructor as typeof Octokit & { plugins?: unknown[] }).plugins ?? [];
+  expect(plugins).toContain(throttling);
 });
 
 test("commentOnIssue posts to the bound issue and returns the comment id and url", async () => {

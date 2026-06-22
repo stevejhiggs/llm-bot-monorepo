@@ -19,8 +19,12 @@ export function createNodeSandbox({
   secrets?: Record<string, string | undefined>;
 }) {
   const cwd = workDir(appName, id);
-  const sandbox = lazySandbox(local({ env: secrets ?? {} }), async () => {
-    await mkdir(cwd, { recursive: true });
-  });
+  const sandbox = lazySandbox(
+    local({ env: secrets ?? {} }),
+    async () => {
+      await mkdir(cwd, { recursive: true });
+    },
+    { cwd: "/" },
+  );
   return { sandbox, cwd };
 }
