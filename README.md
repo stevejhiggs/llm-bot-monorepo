@@ -185,6 +185,9 @@ never reorder or rewrite deployed entries.
 - **Not Cloudflare Shell.** This uses Cloudflare *Sandbox* (full Linux), not the `cloudflare-shell`
   adapter, which exposes only a code tool and can't run `git`/install/test commands.
 
+The sandbox selection and lazy-provisioning mechanism live in the
+[`@repo/sandbox`](packages/sandbox) package — see [`packages/sandbox/README.md`](packages/sandbox/README.md).
+
 ## Getting started
 
 This is a [Turborepo](https://turborepo.com) monorepo. Bots (the Flue runners) live under

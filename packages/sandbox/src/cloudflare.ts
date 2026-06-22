@@ -23,10 +23,10 @@ export function createCloudflareSandbox({
   // authenticate. (getSandbox() SandboxOptions does not accept envVars; injection
   // is via the stub method after the stub is created.)
   const sandbox = lazySandbox(cloudflareSandbox(stub), async () => {
-    const defined = Object.fromEntries(
-      Object.entries(secrets ?? {}).filter(([, value]) => value != null),
-    ) as Record<string, string>;
-    if (Object.keys(defined).length > 0) await stub.setEnvVars(defined);
+    // Skip undefined secrets, and skip setEnvVars entirely when none remain — an
+    // empty call would boot the container for nothing.
+    const defined = Object.entries(secrets ?? {}).filter(([, value]) => value != null);
+    if (defined.length > 0) await stub.setEnvVars(Object.fromEntries(defined));
   });
   return { sandbox, cwd: "/workspace" };
 }

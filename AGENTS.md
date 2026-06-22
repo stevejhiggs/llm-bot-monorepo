@@ -69,6 +69,25 @@ not resolve without the Flue plugin — that is why testable logic lives in the 
 
 ## Architecture
 
+### Shared packages (`packages/`)
+
+Reusable, bot-agnostic logic lives in three **source-only** packages (no build step — consumers
+import the `.ts` directly). Each is authoritative for its own internals; this file points to them
+rather than repeating them. When you change a package, read its `AGENTS.md` first.
+
+- **[`@repo/sandbox`](packages/sandbox/AGENTS.md)** — runtime-selected, lazily-provisioned execution
+  sandbox (node `local()` vs Cloudflare container), plus `resolveSandboxKind` / `lazySandbox` /
+  `workDir`. The bundle-split and lazy-provisioning contracts live there.
+- **[`@repo/github`](packages/github/AGENTS.md)** — GitHub URL/clone-script helpers, webhook
+  decision logic (`planDelivery`), the outbound `commentOnIssue` tool, and the `fetchRepoTool` the
+  subagents clone with.
+- **[`@repo/slack`](packages/slack/AGENTS.md)** — Slack Events API decision logic (`planSlackEvent`),
+  the outbound `replyInThread` / `postProgressInThread` tools, and the GFM→mrkdwn `toMrkdwn`.
+
+They form a flat DAG (`bots/d0lt-bot → {sandbox, github, slack}`, no inter-package edges) and share
+versions through pnpm catalogs in `pnpm-workspace.yaml` (`flue` / `cf` / `external`) — keep
+`@flue/runtime` resolving to the patched `1.0.0-beta.2`.
+
 ### One agent, three entry points
 
 A single **router agent** (`bots/d0lt-bot/src/agents/d0lt-bot.ts`) is reached three ways, all
@@ -98,24 +117,18 @@ injection-safe shell command that the subagent runs with its bash tool inside th
 
 ### Runtime-selected sandbox (dual target)
 
-The same code runs on two targets. `resolveSandboxKind()` (from `@repo/sandbox`) reads
-`FLUE_SANDBOX`: unset → node `local()` sandbox (`@repo/sandbox/node`); `cloudflare` → a Cloudflare
-Sandbox **container** Durable Object (`@repo/sandbox/cloudflare`). The agent initializer picks the
-implementation with a dynamic `import()` so each target's sandbox module stays out of the other
-target's bundle — preserve this when touching the agent or sandbox modules.
+The router owns one sandbox, selected at runtime. `resolveSandboxKind(process.env)` (from
+`@repo/sandbox`) reads `FLUE_SANDBOX`, and the agent initializer picks the implementation with a
+dynamic `import()` — `@repo/sandbox/node` (host `local()` sandbox, dev default) or
+`@repo/sandbox/cloudflare` (a Cloudflare Sandbox **container** Durable Object, when deployed).
+**Keep that import dynamic:** it is what keeps each target's deps out of the other target's bundle,
+and the workerd build (`build:cf`) fails otherwise. The bot passes a `secrets` record
+(`{ GITHUB_TOKEN }`) at construction; the sandbox injects it before the first clone.
 
-Both targets wrap their adapter in `lazySandbox()` (from `@repo/sandbox`), which **defers the
-sandbox's one-time expensive setup until the first shell/file op** — the container boot
-(`setEnvVars`) on Cloudflare, the scratch-dir `mkdir` on node. A turn that never touches the
-sandbox (a plain chat reply, a Slack message that isn't a review/test request) therefore never
-provisions one. The wrapper gates every async `SessionEnv` method behind a memoized `prepare()`
-that runs at most once **before** the first delegated op (the bot passes a `secrets` record
-`{ GITHUB_TOKEN }` at construction time, injected into the sandbox before the first clone), and
-passes the sync `cwd`/`resolvePath` straight through so they answer without booting. Keep the
-node/cloudflare adapter modules in `@repo/sandbox` building a `SandboxFactory` (not doing eager
-I/O) so this contract holds; the lazy behavior is unit-tested in `packages/sandbox/src/`
-(the two glue modules import target-specific deps and aren't tested directly, matching the
-`resolveSandboxKind`-only sandbox test).
+The sandbox mechanism itself — the lazy-provisioning guarantee, the bundle-split rule, the
+node/cloudflare adapters, the `secrets` injection, and `workDir` — lives in **`@repo/sandbox`**.
+Read [`packages/sandbox/AGENTS.md`](packages/sandbox/AGENTS.md) before changing any of it, and
+remember the gate for sandbox changes is **both** `pnpm build` and `pnpm --filter d0lt-bot build:cf`.
 
 ### Channel pattern (follow this when adding a channel)
 
@@ -126,10 +139,12 @@ Each integration is split into two files for a specific reason — keep the spli
   `dispatch(d0ltBot, { id: channel.conversationKey(plan.ref), input: plan.input })`. Flue
   auto-discovers `channels/*.ts` and serves each under `/channels/<name>/...`; every file there
   **must** export a `channel`. Do not put helpers in `channels/`.
-- **Testable logic** in `@repo/github` / `@repo/slack` (was `src/lib/<name>-(webhook|events).ts`) —
-  the outbound API client, a pure `plan*()` function (verified delivery → `{ ref, input } | null`),
-  and the outbound tool factory (`commentOnIssue` / `replyInThread`). The thin channel in
-  `bots/d0lt-bot/src/channels/<name>.ts` imports these plan/tool functions from the package.
+- **Testable logic** lives in the channel's package — `@repo/github` (webhooks) / `@repo/slack`
+  (events): the outbound API client, a pure `plan*()` function (verified delivery →
+  `{ ref, input } | null`), and the outbound tool factory (`commentOnIssue` / `replyInThread`). The
+  thin channel imports these from the package. See
+  [`packages/github/AGENTS.md`](packages/github/AGENTS.md) /
+  [`packages/slack/AGENTS.md`](packages/slack/AGENTS.md) for each package's contracts.
 
 The agent's `conversationTools(id)` tries each channel's `parseConversationKey(id)` in turn and
 returns `{ router, subagent }` tool lists (chat ids parse as no channel → both empty). Outbound
@@ -141,7 +156,7 @@ uses it for `post_slack_progress`: the subagents post phase milestones (cloning/
 tests) while the router is blocked on its `task`. The subagent profiles are therefore **factories**
 (`createReviewer`/`createTestRunner`) built in the agent initializer with those injected tools —
 not static profiles. The router posts the opening ack and the final reply; the final reply runs the
-model's markdown through `toMrkdwn` (`lib/slack-format.ts`) because Slack renders mrkdwn, not GFM.
+model's markdown through `toMrkdwn` (from `@repo/slack`) because Slack renders mrkdwn, not GFM.
 
 To add a channel end to end: create the two files above, gate the channel with
 `channelEnabled("<name>")` (placeholder secret + early-return when disabled), add a branch to

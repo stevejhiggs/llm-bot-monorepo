@@ -74,6 +74,7 @@ export default createAgent(async ({ id, env }) => {
         })
       : (await import("@repo/sandbox/node")).createNodeSandbox({
           id,
+          appName: "d0lt-bot",
           secrets: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },
         });
 
