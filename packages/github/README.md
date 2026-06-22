@@ -20,6 +20,9 @@ It is **source-only**: no build step. Consumers import the `.ts` directly via th
 - **`commentOnIssue`** — the agent's one outbound capability, bound at construction to the
   issue/PR from the verified delivery so the model can supply only the comment body, never the
   destination.
+- **`getClient`** — lazily creates the shared throttled Octokit client. It is intentionally not
+  constructed at module scope because Cloudflare Workers reject timers during global evaluation, and
+  Octokit's throttling plugin starts Bottleneck timers when the client is constructed.
 - **`createGitHubBotChannel`** — constructs the Flue channel, so the bot's discovered
   `channels/github.ts` is a thin shim that just passes `{ enabled, webhookSecret?, agentName,
   triggerPhrase? }`. It dispatches to the agent by name, so the shim never imports the agent (no
@@ -50,7 +53,7 @@ import {
   parseGitHubTarget, parsePrTarget, assertSafeRef, looksPrivate, buildCloneScript,
   type GitHubTarget,
   // webhook planning + outbound comment tool
-  planDelivery, commentOnIssue, client,
+  planDelivery, commentOnIssue, getClient,
   type DispatchPlan, type DispatchInput, type DispatchTarget,
   // the Flue channel factory
   createGitHubBotChannel, type GitHubBotChannelOptions,

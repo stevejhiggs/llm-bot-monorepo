@@ -13,21 +13,25 @@ import * as v from "valibot";
 // the bot comments as that account. Reused across tool instances.
 const ThrottledOctokit = Octokit.plugin(throttling);
 
-export const client = new ThrottledOctokit({
-  auth: process.env.GITHUB_TOKEN,
-  throttle: {
-    onRateLimit: (retryAfter, options, octokit, retryCount) => {
-      octokit.log.warn(`GitHub request quota exhausted for ${options.method} ${options.url}`);
-      if (retryCount < 1) {
-        octokit.log.info(`Retrying GitHub request after ${retryAfter} seconds`);
-        return true;
-      }
+let client: Octokit | undefined;
+
+export function getClient(): Octokit {
+  return (client ??= new ThrottledOctokit({
+    auth: process.env.GITHUB_TOKEN,
+    throttle: {
+      onRateLimit: (retryAfter, options, octokit, retryCount) => {
+        octokit.log.warn(`GitHub request quota exhausted for ${options.method} ${options.url}`);
+        if (retryCount < 1) {
+          octokit.log.info(`Retrying GitHub request after ${retryAfter} seconds`);
+          return true;
+        }
+      },
+      onSecondaryRateLimit: (_retryAfter, options, octokit) => {
+        octokit.log.warn(`GitHub secondary rate limit for ${options.method} ${options.url}`);
+      },
     },
-    onSecondaryRateLimit: (_retryAfter, options, octokit) => {
-      octokit.log.warn(`GitHub secondary rate limit for ${options.method} ${options.url}`);
-    },
-  },
-});
+  }));
+}
 
 /** Where the agent should point a subagent, plus a ready-to-use GitHub URL. */
 export type DispatchTarget =
@@ -128,7 +132,7 @@ function repoUrl(owner: string, repo: string): string {
  * the model supplies only the body, never the owner/repo/number — so it cannot be
  * steered to post elsewhere. `octokit` is injectable for tests.
  */
-export function commentOnIssue(ref: GitHubIssueRef, octokit: Octokit = client) {
+export function commentOnIssue(ref: GitHubIssueRef, octokit?: Octokit) {
   return defineTool({
     name: "comment_on_github_issue",
     description:
@@ -143,7 +147,8 @@ export function commentOnIssue(ref: GitHubIssueRef, octokit: Octokit = client) {
       ),
     }),
     async execute({ body }) {
-      const result = await octokit.rest.issues.createComment({
+      const github = octokit ?? getClient();
+      const result = await github.rest.issues.createComment({
         owner: ref.owner,
         repo: ref.repo,
         issue_number: ref.issueNumber,

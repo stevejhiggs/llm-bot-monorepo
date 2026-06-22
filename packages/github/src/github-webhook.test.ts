@@ -2,8 +2,7 @@ import type { GitHubWebhookDelivery } from "@flue/github";
 import { throttling } from "@octokit/plugin-throttling";
 import { Octokit } from "@octokit/rest";
 import { expect, test } from "vitest";
-import { commentOnIssue, planDelivery } from "./github-webhook.ts";
-import { client } from "./github-webhook.ts";
+import { commentOnIssue, getClient, planDelivery } from "./github-webhook.ts";
 
 const PHRASE = "@d0lt-bot";
 
@@ -104,7 +103,8 @@ test("trigger-phrase match is case-insensitive", () => {
   expect(plan).not.toBeNull();
 });
 
-test("shared GitHub client has throttling enabled", () => {
+test("shared GitHub client is created with throttling enabled", () => {
+  const client = getClient();
   const plugins = (client.constructor as typeof Octokit & { plugins?: unknown[] }).plugins ?? [];
   expect(plugins).toContain(throttling);
 });

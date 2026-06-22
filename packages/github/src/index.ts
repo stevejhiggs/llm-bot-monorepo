@@ -7,11 +7,11 @@ export {
   parsePrTarget,
 } from "./github.ts";
 export {
-  client,
   commentOnIssue,
   type DispatchInput,
   type DispatchPlan,
   type DispatchTarget,
+  getClient,
   planDelivery,
 } from "./github-webhook.ts";
 export { createGitHubBotChannel, type GitHubBotChannelOptions } from "./github-channel.ts";

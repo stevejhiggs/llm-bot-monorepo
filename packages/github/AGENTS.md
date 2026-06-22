@@ -12,7 +12,7 @@ webhook decision logic, the outbound comment tool, and the channel factory. The 
 src/
 ├─ index.ts            # public export surface (see Public API)
 ├─ github.ts           # pure helpers: parse URLs/refs, assemble the clone script (no network/sandbox)
-├─ github-webhook.ts   # planDelivery(), commentOnIssue(), Octokit client + types
+├─ github-webhook.ts   # planDelivery(), commentOnIssue(), lazy Octokit client + types
 ├─ github-channel.ts   # createGitHubBotChannel() — builds the Flue channel
 ├─ agent-integration.ts # tested core for the bot's registry entry
 ├─ default-agent-integration.ts # ./agent-integration export; attaches instructions.md
@@ -39,7 +39,10 @@ From `github.ts` (pure, no I/O):
 From `github-webhook.ts`:
 - `planDelivery(delivery, phrase): DispatchPlan | null` — pure decision logic.
 - `commentOnIssue(ref, octokit?)` — Flue tool factory bound to one issue/PR (`octokit` injectable).
-- `client` — a shared Octokit authenticated by `GITHUB_TOKEN` (the default for `commentOnIssue`).
+- `getClient()` — lazily creates the shared throttled Octokit authenticated by `GITHUB_TOKEN`. Do
+  not create the Octokit client at module scope: `@octokit/plugin-throttling` starts Bottleneck
+  timers during client construction, and Cloudflare Workers reject timers during global scope
+  evaluation.
 - types `DispatchPlan`, `DispatchInput`, `DispatchTarget`.
 
 From `github-channel.ts`:
@@ -105,7 +108,8 @@ agent binds `commentOnIssue` per conversation; the subagents import `fetchRepoTo
 
 `@flue/runtime` + `@flue/github` (catalog `flue`; `@flue/runtime` must resolve to the patched
 `1.0.0-beta.2`), `@repo/channel-registry` for the shared agent-integration type shape,
-`@octokit/rest` + `valibot` (catalog `external`). No dependency on `@repo/sandbox` or `@repo/slack`.
+`@octokit/rest`, `@octokit/plugin-throttling`, and `valibot` (catalog `external`). No dependency on
+`@repo/sandbox` or `@repo/slack`.
 
 ## Tests
 
