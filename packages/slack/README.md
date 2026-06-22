@@ -50,6 +50,8 @@ import {
   createSlackBotChannel, type SlackBotChannelOptions,
   toMrkdwn,
 } from "@repo/slack";
+
+import { createSlackAgentIntegration } from "@repo/slack/agent-integration";
 ```
 
 ## Tests

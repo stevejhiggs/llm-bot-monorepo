@@ -16,13 +16,15 @@ src/
 │                       #   WebClient + types
 ├─ slack-format.ts      # toMrkdwn() — GitHub-flavored markdown → Slack mrkdwn (pure)
 ├─ slack-channel.ts     # createSlackBotChannel() — constructs the Flue channel for the bot's shim
+├─ agent-integration.ts # tested core for the bot's registry entry
+├─ default-agent-integration.ts # ./agent-integration export; attaches instructions.md
 ├─ instructions.md      # the agent's "When the turn comes from Slack" prompt fragment (see below)
 ├─ slack-events.test.ts
 └─ slack-format.test.ts
 ```
 
 `instructions.md` is the Slack-specific section of the agent's prompt, exposed via the package's
-`exports` map (`"./instructions.md"`) and imported by the bot with `with { type: "markdown" }`.
+`exports` map (`"./instructions.md"`) and attached by the package's `./agent-integration` export.
 Keeping it here puts the prose describing `reply_in_slack_thread` / `post_slack_progress` /
 `threadContext` next to the tools it documents. See the root AGENTS.md "Source-dependent prompt".
 
@@ -52,6 +54,12 @@ From `slack-channel.ts`:
   `planSlackEvent`, then `enrichWithThreadContext` (attaches prior thread messages for a threaded
   turn), then dispatches by name (`dispatch({ agent: agentName, ... })`).
 - type `SlackBotChannelOptions`.
+
+From `./agent-integration`:
+- `createSlackAgentIntegration(channel): SlackAgentIntegration` — returns the bot's registry entry
+  for Slack: package-owned prompt fragment, `channel.parseConversationKey`, router
+  `reply_in_slack_thread` / `post_slack_progress`, and subagent `post_slack_progress`.
+- type `SlackAgentIntegration`.
 
 ## Contracts (do not break these)
 
@@ -111,8 +119,9 @@ between.
 ## Dependencies
 
 `@flue/runtime` + `@flue/slack` (catalog `flue`; `@flue/runtime` must resolve to the patched
-`1.0.0-beta.2`), `@slack/web-api` + `valibot` (catalog `external`). No dependency on `@repo/sandbox`
-or `@repo/github`.
+`1.0.0-beta.2`), `@repo/channel-registry` for the shared agent-integration type shape,
+`@slack/web-api` + `valibot` (catalog `external`). No dependency on `@repo/sandbox` or
+`@repo/github`.
 
 ## Tests
 

@@ -14,13 +14,15 @@ src/
 ├─ github.ts           # pure helpers: parse URLs/refs, assemble the clone script (no network/sandbox)
 ├─ github-webhook.ts   # planDelivery(), commentOnIssue(), Octokit client + types
 ├─ github-channel.ts   # createGitHubBotChannel() — builds the Flue channel
+├─ agent-integration.ts # tested core for the bot's registry entry
+├─ default-agent-integration.ts # ./agent-integration export; attaches instructions.md
 ├─ fetch-repo.ts       # the fetch_repo Flue tool (default export → re-exported as fetchRepoTool)
 ├─ instructions.md     # the agent's "When the turn comes from GitHub" prompt fragment (see below)
 └─ github-webhook.test.ts
 ```
 
 `instructions.md` is the GitHub-specific section of the agent's prompt, exposed via the package's
-`exports` map (`"./instructions.md"`) and imported by the bot with `with { type: "markdown" }`.
+`exports` map (`"./instructions.md"`) and attached by the package's `./agent-integration` export.
 Keeping it here puts the prose describing `comment_on_github_issue` and the GitHub event shape next
 to the channel it documents. See the root AGENTS.md "Source-dependent prompt".
 
@@ -46,6 +48,12 @@ From `github-channel.ts`:
   runs `planDelivery` then dispatches by name (`dispatch({ agent: agentName, ... })`).
   `triggerPhrase` defaults to `@<agentName>`.
 - type `GitHubBotChannelOptions`.
+
+From `./agent-integration`:
+- `createGitHubAgentIntegration(channel): GitHubAgentIntegration` — returns the bot's registry entry
+  for GitHub: package-owned prompt fragment, `channel.parseConversationKey`, and the
+  `comment_on_github_issue` router tool.
+- type `GitHubAgentIntegration`.
 
 From `fetch-repo.ts`:
 - `fetchRepoTool` — the `fetch_repo` Flue tool.
@@ -96,8 +104,8 @@ agent binds `commentOnIssue` per conversation; the subagents import `fetchRepoTo
 ## Dependencies
 
 `@flue/runtime` + `@flue/github` (catalog `flue`; `@flue/runtime` must resolve to the patched
-`1.0.0-beta.2`), `@octokit/rest` + `valibot` (catalog `external`). No dependency on `@repo/sandbox`
-or `@repo/slack`.
+`1.0.0-beta.2`), `@repo/channel-registry` for the shared agent-integration type shape,
+`@octokit/rest` + `valibot` (catalog `external`). No dependency on `@repo/sandbox` or `@repo/slack`.
 
 ## Tests
 

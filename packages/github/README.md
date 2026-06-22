@@ -57,6 +57,8 @@ import {
   // the fetch_repo Flue tool
   fetchRepoTool,
 } from "@repo/github";
+
+import { createGitHubAgentIntegration } from "@repo/github/agent-integration";
 ```
 
 ## Tests

@@ -9,11 +9,16 @@ A GitHub assistant built on the [Flue](https://flueframework.com/) agent framewo
 requests and runs repositories' tests inside a sandbox, and can be driven from chat, GitHub
 comments, or Slack.
 
+For a request-flow map, read [`docs/architecture.md`](docs/architecture.md). For file-by-file
+change recipes, read [`docs/development.md`](docs/development.md). This `AGENTS.md` keeps the
+contracts and footguns that coding agents must preserve while editing.
+
 - **Monorepo:** Turborepo. Bots (Flue runners) live under `bots/`; supporting apps live under
   `apps/`. Root scripts fan out via `turbo`. `bots/d0lt-bot` is the first bot — the Flue runner
   (the agent). `apps/chat` is a TanStack Start web UI that talks to the runner — see "The chat web
   app". Additional bots are added under `bots/`. Shared functionality lives in source-only packages
-  under `packages/` (`@repo/sandbox`, `@repo/github`, `@repo/slack`, `@repo/observability`) — bots consume them via
+  under `packages/` (`@repo/channel-registry`, `@repo/sandbox`, `@repo/github`, `@repo/slack`,
+  `@repo/observability`) — bots consume them via
   `workspace:*` and TypeScript resolves `.ts` sources directly (no build step required).
 - **Stack:** TypeScript (ESM, `NodeNext`), Node 24, pnpm 11. Flue runtime + CLI (`@flue/*`,
   currently `1.0.0-beta`). Tests with Vitest; lint/format with oxlint + oxfmt. Deploys to Node or
@@ -51,7 +56,9 @@ Tests are pure and offline — no network, no live Flue runtime. Channel logic i
 the pure `plan*()` functions directly and invoking the outbound tools with an **injected fake
 client** (Octokit/WebClient). Follow that pattern for new channels; do not require the agent graph
 in a test (the agent imports markdown via `with { type: "markdown" }`, which Vitest's loader does
-not resolve without the Flue plugin — that is why testable logic lives in the `@repo/*` packages (and the bot's `lib/` — `channel-flags.ts`, `conversation-source.ts`), not in `channels/` or the agent graph).
+not resolve without the Flue plugin — that is why testable logic lives in the `@repo/*` packages
+(and the bot's `lib/` where applicable, such as `channel-flags.ts`), not in `channels/` or the agent
+graph).
 
 ## Code style
 
@@ -71,10 +78,13 @@ not resolve without the Flue plugin — that is why testable logic lives in the 
 
 ### Shared packages (`packages/`)
 
-Reusable, bot-agnostic logic lives in four **source-only** packages (no build step — consumers
+Reusable, bot-agnostic logic lives in **source-only** packages (no build step — consumers
 import the `.ts` directly). Each is authoritative for its own internals; this file points to them
 rather than repeating them. When you change a package, read its `AGENTS.md` first.
 
+- **[`@repo/channel-registry`](packages/channel-registry/AGENTS.md)** — the generic channel registry
+  resolver and shared `ChannelIntegration` / `ConversationTools` types used by the bot and channel
+  packages.
 - **[`@repo/sandbox`](packages/sandbox/AGENTS.md)** — runtime-selected, lazily-provisioned execution
   sandbox (node `local()` vs Cloudflare container), plus `resolveSandboxKind` / `lazySandbox` /
   `workDir`. The bundle-split and lazy-provisioning contracts live there.
@@ -87,9 +97,10 @@ rather than repeating them. When you change a package, read its `AGENTS.md` firs
   console sink that projects Flue's `observe(...)` event stream into structured logs (failures, slow
   ops, an activity trail). The bot's `app.ts` registers it at startup.
 
-They form a flat DAG (`bots/d0lt-bot → {sandbox, github, slack, observability}`, no inter-package edges) and share
-versions through pnpm catalogs in `pnpm-workspace.yaml` (`flue` / `cf` / `external`) — keep
-`@flue/runtime` resolving to the patched `1.0.0-beta.2`.
+They form a shallow DAG: `@repo/channel-registry` is a shared leaf, GitHub/Slack depend on it for
+agent-integration types, and `bots/d0lt-bot → {channel-registry, sandbox, github, slack,
+observability}`. Versions are shared through pnpm catalogs in `pnpm-workspace.yaml` (`flue` / `cf` /
+`external`) — keep `@flue/runtime` resolving to the patched `1.0.0-beta.2`.
 
 ### One agent, three entry points
 
@@ -133,7 +144,7 @@ The mechanism (lazy provisioning, the bundle split, the adapters, `secrets`, `wo
 **[`@repo/sandbox`](packages/sandbox/AGENTS.md)** — read it before changing any of it. The gate for
 sandbox changes is **both** `pnpm build` and `pnpm --filter d0lt-bot build:cf`.
 
-### Channel pattern (follow this when adding a channel)
+### Channel pattern
 
 Each integration is split into two files for a specific reason — keep the split:
 
@@ -146,18 +157,21 @@ Each integration is split into two files for a specific reason — keep the spli
 - **Testable logic + channel construction** live in the channel's package — `@repo/github`
   (webhooks) / `@repo/slack` (events): the outbound API client, a pure `plan*()` function (verified
   delivery → `{ ref, input } | null`), the outbound tool factory (`commentOnIssue` / `replyInThread`),
-  and the **channel factory** that builds the Flue channel and wires `plan*()` → `dispatch`. The
-  factory dispatches to the agent **by name** (`dispatch({ agent: agentName, ... })`), so the shim
-  never imports the agent. See [`packages/github/AGENTS.md`](packages/github/AGENTS.md) /
+  the **channel factory** that builds the Flue channel and wires `plan*()` → `dispatch`, and the
+  **agent-integration factory** that returns that channel's registry entry (prompt fragment, parser,
+  router tools, subagent tools). The channel factory dispatches to the agent **by name**
+  (`dispatch({ agent: agentName, ... })`), so the shim never imports the agent. See
+  [`packages/github/AGENTS.md`](packages/github/AGENTS.md) /
   [`packages/slack/AGENTS.md`](packages/slack/AGENTS.md) for each package's contracts.
 
-The agent classifies each turn's source once with `resolveConversationSource(id, parsers)`
-(`lib/conversation-source.ts`) — it tries each channel's `parseConversationKey(id)` in turn and
-returns `"github" | "slack" | "chat"` (chat ids parse as no channel → `"chat"`). Both the prompt
-(see "Source-dependent prompt") and `conversationTools(id, source)`'s `{ router, subagent }` tool
-lists derive from that one decision. Outbound tools take only the message body/text from the model;
-the destination (issue/thread) is fixed at bind time from the verified delivery, so the model cannot
-redirect a post.
+The agent classifies each turn's source once through `CHANNEL_REGISTRY` in
+`src/agents/d0lt-bot.ts` (resolved by `@repo/channel-registry`). The registry tries each
+channel's `parseConversationKey(id)` in order; chat ids parse as no channel and therefore get the
+base prompt only and no channel tools. Both the prompt fragment and the `{ router, subagent }` tool
+lists derive from the matched registry entry. The matched entry is produced by the channel package,
+so GitHub-specific and Slack-specific tool/prompt wiring stays next to that channel's tools.
+Outbound tools take only the message body/text from the model; the destination (issue/thread) is
+fixed at bind time from the verified delivery, so the model cannot redirect a post.
 
 `subagent` is for tools a channel turn needs to give the **subagents**, not just the router. Slack
 uses it for `post_slack_progress`: the subagents post phase milestones (cloning/installing, running
@@ -171,19 +185,18 @@ model's markdown through `toMrkdwn` (from `@repo/slack`) because Slack renders m
 The agent's instructions are composed per turn, not static: a channel-agnostic **base**
 (`src/agents/d0lt-bot.md` — the subagent routing + notes) plus the **fragment** for the turn's
 source. Each channel package owns its fragment as a markdown file (`packages/<name>/src/instructions.md`,
-exposed via the package's `exports` map as `"./instructions.md"`) imported with
-`with { type: "markdown" }`; the bot maps `source → fragment` in `INSTRUCTION_FRAGMENTS` and appends
-the one selected (chat → base alone). So the model sees only the section for where the turn came
-from, and a channel's prose lives next to its tools. The `*.md` import type comes from
-`@flue/runtime`'s global ambient `declare module '*.md'`, so package-subpath imports type-check
-without extra `.d.ts` — but the markdown **loader** resolving a package `.md` is confirmed only by
-`pnpm build` / `build:cf`, so run both when touching this.
+exposed via the package's `exports` map as `"./instructions.md"`) and imports it from that package's
+`"./agent-integration"` subpath with `with { type: "markdown" }`; the bot attaches the selected
+fragment through `CHANNEL_REGISTRY` (chat → base alone). So the model sees only the section for
+where the turn came from, and a channel's prose lives next to its tools. The `*.md` import type
+comes from `@flue/runtime`'s global ambient `declare module '*.md'`, so package-subpath imports
+type-check without extra `.d.ts` — but the markdown **loader** resolving a package `.md` is
+confirmed only by `pnpm build` / `build:cf`, so run both when touching this.
 
-To add a channel end to end: add the package's channel factory + testable logic, create the thin
-shim above (gate it with `channelEnabled("<name>")`, pass the resolved secret + `agentName`), add a
-branch to `conversationTools(id, source)` **and** to `resolveConversationSource` /
-`INSTRUCTION_FRAGMENTS`, add the package's `src/instructions.md` fragment (and its `exports` entry),
-and document its enable flag + secrets in `.env.example`, `.dev.vars`, and `README.md`.
+To add a channel end to end, follow the recipe in
+[`docs/development.md#add-a-channel`](docs/development.md#add-a-channel). The short version: package
+logic + channel factory, thin discovered shim, `CHANNEL_REGISTRY` entry, package-owned
+`./agent-integration` + `instructions.md` exports, env docs, and package tests.
 
 ### No channel ⇄ agent import cycle
 

@@ -1,17 +1,12 @@
 {
-  "name": "@repo/github",
+  "name": "@repo/channel-registry",
   "version": "0.0.1",
   "type": "module",
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
-    },
-    "./agent-integration": {
-      "types": "./src/default-agent-integration.ts",
-      "default": "./src/default-agent-integration.ts"
-    },
-    "./instructions.md": "./src/instructions.md"
+    }
   },
   "scripts": {
     "test": "vitest run",
@@ -19,11 +14,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@flue/github": "catalog:flue",
-    "@flue/runtime": "catalog:flue",
-    "@octokit/rest": "catalog:external",
-    "@repo/channel-registry": "workspace:*",
-    "valibot": "catalog:external"
+    "@flue/runtime": "catalog:flue"
   },
   "devDependencies": {
     "@types/node": "catalog:tooling",

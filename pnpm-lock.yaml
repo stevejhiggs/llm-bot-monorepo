@@ -175,6 +175,9 @@ importers:
       '@flue/slack':
         specifier: catalog:flue
         version: 1.0.0-beta.1
+      '@repo/channel-registry':
+        specifier: workspace:*
+        version: link:../../packages/channel-registry
       '@repo/github':
         specifier: workspace:*
         version: link:../../packages/github
@@ -210,6 +213,22 @@ importers:
         specifier: ^4.103.0
         version: 4.103.0(@cloudflare/workers-types@4.20260619.1)
 
+  packages/channel-registry:
+    dependencies:
+      '@flue/runtime':
+        specifier: catalog:flue
+        version: 1.0.0-beta.2(patch_hash=98e250f6ca915f426cf426a2171930a066d6b8c6068d6002edbe82c59eded894)(@cfworker/json-schema@4.1.1)(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(typebox@1.1.38)(typescript@7.0.1-rc)(ws@8.21.0)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+    devDependencies:
+      '@types/node':
+        specifier: catalog:tooling
+        version: 24.13.2
+      typescript:
+        specifier: catalog:tooling
+        version: 7.0.1-rc
+      vitest:
+        specifier: catalog:testing
+        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@24.13.2)(jsdom@28.1.0)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
+
   packages/github:
     dependencies:
       '@flue/github':
@@ -221,6 +240,9 @@ importers:
       '@octokit/rest':
         specifier: catalog:external
         version: 22.0.1
+      '@repo/channel-registry':
+        specifier: workspace:*
+        version: link:../channel-registry
       valibot:
         specifier: catalog:external
         version: 1.4.1(typescript@7.0.1-rc)
@@ -278,6 +300,9 @@ importers:
       '@flue/slack':
         specifier: catalog:flue
         version: 1.0.0-beta.1
+      '@repo/channel-registry':
+        specifier: workspace:*
+        version: link:../channel-registry
       '@slack/web-api':
         specifier: catalog:external
         version: 8.0.0-rc.1

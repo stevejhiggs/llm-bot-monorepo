@@ -18,6 +18,7 @@
     "@flue/github": "catalog:flue",
     "@flue/runtime": "catalog:flue",
     "@flue/slack": "catalog:flue",
+    "@repo/channel-registry": "workspace:*",
     "@repo/github": "workspace:*",
     "@repo/observability": "workspace:*",
     "@repo/sandbox": "workspace:*",

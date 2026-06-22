@@ -7,6 +7,10 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./agent-integration": {
+      "types": "./src/default-agent-integration.ts",
+      "default": "./src/default-agent-integration.ts"
+    },
     "./instructions.md": "./src/instructions.md"
   },
   "scripts": {
@@ -17,6 +21,7 @@
   "dependencies": {
     "@flue/runtime": "catalog:flue",
     "@flue/slack": "catalog:flue",
+    "@repo/channel-registry": "workspace:*",
     "@slack/web-api": "catalog:external",
     "valibot": "catalog:external"
   },
