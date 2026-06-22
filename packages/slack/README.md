@@ -23,6 +23,24 @@ It is **source-only**: no build step. Consumers import the `.ts` directly via th
   `channels/slack.ts` is a thin shim that just passes `{ enabled, signingSecret?, agentName }`. It
   dispatches to the agent by name, so the shim never imports the agent (no channel ⇄ agent cycle).
 
+## Event handling
+
+`planSlackEvent(payload)` is the pure decision: given a verified Events API delivery, it returns
+`{ ref, input } | null` — `null` for everything the bot doesn't act on (the channel then answers an
+empty 200). What it acts on:
+
+- **An @-mention** (`app_mention`) in a channel or thread — e.g. `@d0lt-bot review
+  https://github.com/owner/repo/pull/1`.
+- **A direct message** to the bot (`message` with `channel_type: im`).
+
+In both cases the message text is treated like a chat request (a GitHub URL + what to do), and the
+result is posted back in-thread. Because a run takes a while, the bot also posts coarse progress
+milestones in the thread (cloning, installing, running tests) via `postProgressInThread` before the
+final reply. Messages from bots and edited/system messages are ignored, so a reply can't re-trigger
+the bot. Slack expects a fast `2xx` and retries on timeout/non-2xx, so the channel acks immediately
+and processes the work asynchronously; retries are not deduplicated (messages in the same thread
+serialize on one instance).
+
 ## Public API
 
 ```ts

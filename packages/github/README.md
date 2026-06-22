@@ -25,6 +25,23 @@ It is **source-only**: no build step. Consumers import the `.ts` directly via th
   triggerPhrase? }`. It dispatches to the agent by name, so the shim never imports the agent (no
   channel ⇄ agent cycle); `triggerPhrase` defaults to `@<agentName>`.
 
+## Webhook handling
+
+`planDelivery(delivery, phrase)` is the pure decision: given a verified webhook delivery, it returns
+`{ ref, input } | null` — `null` for everything the bot doesn't act on (the channel then answers an
+empty 200). What it acts on:
+
+- **A comment on a PR** containing the trigger phrase → review the PR, or run its tests if the
+  comment asks.
+- **A comment on a plain issue** containing the trigger phrase → run the tests for that repo.
+- **A newly opened PR** (`pull_request.opened`) → an automatic review, no phrase needed.
+
+Comments authored by bot accounts (`sender.type === "Bot"`) are filtered out, so the bot never
+reacts to its own posts. GitHub expects a `2xx` within ten seconds and does not auto-retry, so the
+channel acks immediately and processes the work asynchronously on the agent instance. Deliveries are
+not deduplicated by `deliveryId` (GitHub doesn't auto-retry, and comments on the same PR already
+serialize on one instance); the id is threaded through so dedup can be added if needed.
+
 ## Public API
 
 ```ts
