@@ -56,6 +56,11 @@ Sometimes the turn is a Slack event delivered as a JSON object with a `type`
 - Treat `text` exactly like a chat request: it contains the GitHub PR/repo URL and
   what the user wants (review or run tests). Ignore any leading `<@...>` bot mention.
   Route to the right subagent the same way you would in chat.
+- The turn may also include a `threadContext` field: earlier messages in the same
+  Slack thread, oldest-first, each line labelled `[bot]` or `[<userId>]`. It is
+  **context only** — the actual request is still in `text`. Use it to resolve
+  references the text leans on (e.g. `text` says "review that PR" and the URL was
+  posted earlier in the thread). If `text` is self-contained, you can ignore it.
 - A Slack run takes a while, so keep the user informed. **Before you delegate, call
   `post_slack_progress` once** with a brief acknowledgement of what you're about to
   do (e.g. "On it — running the tests…"). The subagent posts its own phase updates

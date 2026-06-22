@@ -11,8 +11,9 @@ reply/progress tools, the GFM → mrkdwn converter, and the channel factory. The
 ```
 src/
 ├─ index.ts             # public export surface (see Public API)
-├─ slack-events.ts      # planSlackEvent(), replyInThread(), postProgressInThread(),
-│                       #   workerdSafeFetch(), WebClient + types
+├─ slack-events.ts      # planSlackEvent(), fetchThreadContext(), enrichWithThreadContext(),
+│                       #   replyInThread(), postProgressInThread(), workerdSafeFetch(),
+│                       #   WebClient + types
 ├─ slack-format.ts      # toMrkdwn() — GitHub-flavored markdown → Slack mrkdwn (pure)
 ├─ slack-channel.ts     # createSlackBotChannel() — constructs the Flue channel for the bot's shim
 ├─ slack-events.test.ts
@@ -22,7 +23,13 @@ src/
 ## Public API
 
 From `slack-events.ts`:
-- `planSlackEvent(payload): SlackDispatchPlan | null` — pure decision logic.
+- `planSlackEvent(payload): SlackDispatchPlan | null` — pure decision logic. The plan carries
+  `messageTs` (the trigger's own `ts`) so the channel can tell a threaded reply apart from a root.
+- `fetchThreadContext({ channelId, threadTs, excludeTs }, slack?, max?)` — reads a thread via
+  `conversations.replies` (paginated, capped) and formats the most recent `max` messages
+  oldest-first, excluding the trigger; `null` if empty. Needs the bot token to carry `*:history`.
+- `enrichWithThreadContext(plan, slack?)` — returns the input to dispatch, attaching `threadContext`
+  when the turn is a reply inside an existing thread (`ref.threadTs !== messageTs`). Fail-quiet.
 - `replyInThread(ref, slack?)` — Flue tool factory for the final reply; bound to one thread.
 - `postProgressInThread(ref, slack?)` — Flue tool factory for best-effort progress notes.
 - `workerdSafeFetch(baseFetch?): typeof fetch` — the fetch wrapper for `@slack/web-api` on workerd.
@@ -36,7 +43,8 @@ From `slack-format.ts`:
 From `slack-channel.ts`:
 - `createSlackBotChannel(options): SlackChannel` — builds the Flue channel. `options` is
   `{ enabled, signingSecret?, agentName }`; the package reads no env. The handler runs
-  `planSlackEvent` then dispatches by name (`dispatch({ agent: agentName, ... })`).
+  `planSlackEvent`, then `enrichWithThreadContext` (attaches prior thread messages for a threaded
+  turn), then dispatches by name (`dispatch({ agent: agentName, ... })`).
 - type `SlackBotChannelOptions`.
 
 ## Contracts (do not break these)
@@ -77,6 +85,15 @@ not a full markdown engine — don't grow it into one.
 `createSlackBotChannel` dispatches with `dispatch({ agent: agentName, ... })`, so the shim has no
 import edge to the agent (the agent imports `channel` for `parseConversationKey`, one-directional).
 Don't import the agent into a channel.
+
+### 6. Thread-context fetch is separate from the pure plan, and fails quiet
+
+`planSlackEvent` stays **pure** (no network) — the thread fetch lives in `fetchThreadContext` /
+`enrichWithThreadContext`, called by the channel handler with the shared `client`. Keep that split
+so the plan stays unit-testable without a network. `enrichWithThreadContext` only fetches for a
+threaded reply (`ref.threadTs !== messageTs`) and, like `postProgressInThread`, **fails quiet**: a
+failed or empty fetch dispatches the turn without `threadContext` rather than dropping it. The fetch
+labels authors with raw Slack ids (no `users.info`) and caps both the message count and page-follows.
 
 ## How the bot consumes it
 

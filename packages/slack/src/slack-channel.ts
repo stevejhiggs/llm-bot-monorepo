@@ -7,7 +7,7 @@
 
 import { dispatch } from "@flue/runtime";
 import { createSlackChannel, type SlackChannel } from "@flue/slack";
-import { planSlackEvent } from "./slack-events.ts";
+import { enrichWithThreadContext, planSlackEvent } from "./slack-events.ts";
 
 export interface SlackBotChannelOptions {
   // Whether the channel acts on events. When false it still constructs (Flue's
@@ -46,12 +46,17 @@ export function createSlackBotChannel(options: SlackBotChannelOptions): SlackCha
       // Handled work is dispatched durably and processed after we respond.
       if (!plan) return;
 
+      // When the turn is a reply inside an existing thread, attach the prior
+      // messages as context so references like "review that PR" resolve. Fail-quiet:
+      // a fetch failure dispatches the turn without context rather than dropping it.
+      const input = await enrichWithThreadContext(plan);
+
       await dispatch({
         agent: agentName,
         // One agent instance per Slack thread: all activity in the same thread
         // shares a conversation, so the bot keeps context across messages.
         id: channel.conversationKey(plan.ref),
-        input: plan.input,
+        input,
       });
     },
   });

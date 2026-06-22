@@ -1,5 +1,7 @@
 export {
   client,
+  enrichWithThreadContext,
+  fetchThreadContext,
   planSlackEvent,
   postProgressInThread,
   replyInThread,

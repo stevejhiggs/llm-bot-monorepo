@@ -89,14 +89,19 @@ is posted in-thread, and coarse progress milestones are posted while it works.
 ### Setup
 
 Two secrets, with different jobs: `SLACK_SIGNING_SECRET` verifies inbound requests, and
-`SLACK_BOT_TOKEN` (the bot user OAuth token, `xoxb-…`) authenticates outbound replies. Set them the
-same way as `ANTHROPIC_API_KEY`. Enable the channel with `CHANNEL_SLACK_ENABLE=true`.
+`SLACK_BOT_TOKEN` (the bot user OAuth token, `xoxb-…`) authenticates outbound replies and reads
+thread context. Set them the same way as `ANTHROPIC_API_KEY`. Enable the channel with
+`CHANNEL_SLACK_ENABLE=true`.
 
 In your Slack app config:
 
 - **Event Subscriptions → Request URL:** `https://<your-app>/channels/slack/events`
 - **Subscribe to bot events:** `app_mention` and `message.im`
-- **OAuth scopes:** `app_mentions:read`, `im:history`, and `chat:write`
+- **OAuth scopes:** `app_mentions:read`, `chat:write`, and the `*:history` scopes for the
+  conversations the bot runs in — `channels:history`, `groups:history`, `im:history`,
+  `mpim:history`. When mentioned inside a thread the bot reads the earlier messages
+  (`conversations.replies`) and passes them to the agent as context, which needs the matching
+  `*:history` scope.
 
 ## Deploying to Cloudflare
 
