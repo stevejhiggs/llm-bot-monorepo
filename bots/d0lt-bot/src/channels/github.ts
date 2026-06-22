@@ -1,45 +1,26 @@
-// Discovered GitHub channel. Flue serves its single route at
-// /channels/github/webhook (relative to the flue() mount). @flue/github verifies
-// each delivery's X-Hub-Signature-256 against the exact request bytes before the
-// handler runs, so everything below sees only authentic deliveries.
-//
-// This module is intentionally thin: the branching logic and the outbound comment
-// tool live in `@repo/github` (unit-tested there). Here we only build the
-// channel and bridge verified deliveries to the d0lt-bot agent via dispatch().
+// Discovered GitHub channel — a thin shim. Flue's file-based discovery serves its
+// single route at /channels/github/webhook (relative to the flue() mount) and
+// requires every channels/*.ts to export a `channel`, so this file must live in
+// the bot. The construction + webhook→dispatch wiring lives in `@repo/github`
+// (createGitHubBotChannel); here we only make the bot-owned decisions: whether the
+// channel is enabled, the resolved secret/phrase, and the agent to dispatch to.
 
-import { createGitHubChannel } from "@flue/github";
-import { dispatch } from "@flue/runtime";
-import d0ltBot from "../agents/d0lt-bot.ts";
+import { createGitHubBotChannel } from "@repo/github";
 import { channelEnabled } from "../lib/channel-flags.ts";
-import { planDelivery, triggerPhrase } from "@repo/github";
 
-// Opt-in via CHANNEL_GITHUB_ENABLE. Flue discovers every channels/*.ts and requires
-// a valid `channel` export, so a disabled channel can't be omitted — instead it
-// constructs with a placeholder secret (no real GITHUB_WEBHOOK_SECRET needed to boot)
-// and its handler ignores every delivery. Enabling it requires the real secret.
+// Opt-in via CHANNEL_GITHUB_ENABLE. When disabled the channel still constructs
+// (discovery needs the export) but ignores every delivery, so no real
+// GITHUB_WEBHOOK_SECRET is needed to boot. Enabling it requires the real secret.
 const enabled = channelEnabled("github");
 
-// d0lt-bot.ts imports `channel` (and the comment tool) back from this module. That
-// cycle is safe because every cross-module binding is read inside a deferred
-// callback — `d0ltBot` only inside `webhook` below, and `channel` only inside the
-// agent initializer — never at module-eval time.
-export const channel = createGitHubChannel({
-  webhookSecret: enabled ? process.env.GITHUB_WEBHOOK_SECRET! : "disabled",
-
-  async webhook({ delivery }) {
-    if (!enabled) return;
-    const plan = planDelivery(delivery, triggerPhrase());
-    // Unhandled deliveries return nothing → an empty 200, the fast ack GitHub
-    // wants. Handled work is dispatched durably and processed after we respond.
-    if (!plan) return;
-
-    await dispatch(d0ltBot, {
-      // One agent instance per issue/PR: all activity on the same thread shares a
-      // conversation, so the bot keeps context across comments.
-      id: channel.conversationKey(plan.ref),
-      input: plan.input,
-    });
-  },
+// We dispatch to the agent by its discovered name rather than importing it, so
+// this module has no import edge to the agent. d0lt-bot.ts still imports `channel`
+// from here to parse conversation keys, but that is now one-directional — there is
+// no channel ⇄ agent cycle. "d0lt-bot" is the agent module's filename.
+export const channel = createGitHubBotChannel({
+  enabled,
+  webhookSecret: enabled ? process.env.GITHUB_WEBHOOK_SECRET! : undefined,
+  agentName: "d0lt-bot",
+  // Optional override; unset → the factory defaults to "@d0lt-bot".
+  triggerPhrase: process.env.GITHUB_TRIGGER_PHRASE,
 });
-
-export { commentOnIssue } from "@repo/github";

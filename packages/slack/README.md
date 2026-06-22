@@ -19,6 +19,9 @@ It is **source-only**: no build step. Consumers import the `.ts` directly via th
 - **`toMrkdwn`** — converts the model's GitHub-flavored markdown to Slack mrkdwn (bold, links,
   headings, bullets; tables degrade to bullet lines). Slack does not render GFM.
 - **`workerdSafeFetch`** — a `fetch` wrapper that makes `@slack/web-api` work on Cloudflare Workers.
+- **`createSlackBotChannel`** — constructs the Flue channel, so the bot's discovered
+  `channels/slack.ts` is a thin shim that just passes `{ enabled, signingSecret?, agentName }`. It
+  dispatches to the agent by name, so the shim never imports the agent (no channel ⇄ agent cycle).
 
 ## Public API
 
@@ -26,6 +29,7 @@ It is **source-only**: no build step. Consumers import the `.ts` directly via th
 import {
   planSlackEvent, replyInThread, postProgressInThread, workerdSafeFetch, client,
   type SlackDispatchPlan, type SlackDispatchInput,
+  createSlackBotChannel, type SlackBotChannelOptions,
   toMrkdwn,
 } from "@repo/slack";
 ```

@@ -13,6 +13,6 @@ export {
   type DispatchPlan,
   type DispatchTarget,
   planDelivery,
-  triggerPhrase,
 } from "./github-webhook.ts";
+export { createGitHubBotChannel, type GitHubBotChannelOptions } from "./github-channel.ts";
 export { default as fetchRepoTool } from "./fetch-repo.ts";

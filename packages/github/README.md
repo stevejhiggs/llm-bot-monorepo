@@ -20,6 +20,10 @@ It is **source-only**: no build step. Consumers import the `.ts` directly via th
 - **`commentOnIssue`** — the agent's one outbound capability, bound at construction to the
   issue/PR from the verified delivery so the model can supply only the comment body, never the
   destination.
+- **`createGitHubBotChannel`** — constructs the Flue channel, so the bot's discovered
+  `channels/github.ts` is a thin shim that just passes `{ enabled, webhookSecret?, agentName,
+  triggerPhrase? }`. It dispatches to the agent by name, so the shim never imports the agent (no
+  channel ⇄ agent cycle); `triggerPhrase` defaults to `@<agentName>`.
 
 ## Public API
 
@@ -29,8 +33,10 @@ import {
   parseGitHubTarget, parsePrTarget, assertSafeRef, looksPrivate, buildCloneScript,
   type GitHubTarget,
   // webhook planning + outbound comment tool
-  planDelivery, triggerPhrase, commentOnIssue, client,
+  planDelivery, commentOnIssue, client,
   type DispatchPlan, type DispatchInput, type DispatchTarget,
+  // the Flue channel factory
+  createGitHubBotChannel, type GitHubBotChannelOptions,
   // the fetch_repo Flue tool
   fetchRepoTool,
 } from "@repo/github";

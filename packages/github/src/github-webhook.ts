@@ -12,11 +12,6 @@ import * as v from "valibot";
 // the bot comments as that account. Reused across tool instances.
 export const client = new Octokit({ auth: process.env.GITHUB_TOKEN });
 
-/** Comment text that activates the bot. Configurable; defaults to a mention. */
-export function triggerPhrase(): string {
-  return process.env.GITHUB_TRIGGER_PHRASE ?? "@d0lt-bot";
-}
-
 /** Where the agent should point a subagent, plus a ready-to-use GitHub URL. */
 export type DispatchTarget =
   | { kind: "pr"; owner: string; repo: string; number: number; url: string }
