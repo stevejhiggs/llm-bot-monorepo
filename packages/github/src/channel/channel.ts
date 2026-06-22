@@ -7,7 +7,7 @@
 
 import { createGitHubChannel, type GitHubChannel } from "@flue/github";
 import { dispatch } from "@flue/runtime";
-import { planDelivery } from "./github-webhook.ts";
+import { planDelivery } from "../webhook/plan.ts";
 
 export interface GitHubBotChannelOptions {
   // Whether the channel acts on deliveries. When false it still constructs (Flue's

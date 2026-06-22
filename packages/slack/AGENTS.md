@@ -8,54 +8,78 @@ reply/progress tools, the GFM → mrkdwn converter, and the channel factory. The
 
 ## What's in here
 
+The package is grouped into three domain folders along its pure/side-effecting boundary —
+`events/` (pure inbound decision), `channel/` (the Flue channel plus everything that talks to the
+Slack Web API, and the agent-registry wiring), and `format/` (the pure GFM → mrkdwn converter) —
+plus the public `index.ts` barrel. Files are named for their role within a folder; nothing carries
+a redundant `slack-` prefix.
+
 ```
 src/
-├─ index.ts             # public export surface (see Public API)
-├─ slack-events.ts      # planSlackEvent(), fetchThreadContext(), enrichWithThreadContext(),
-│                       #   replyInThread(), postProgressInThread(), workerdSafeFetch(),
-│                       #   WebClient + types
-├─ slack-format.ts      # toMrkdwn() — GitHub-flavored markdown → Slack mrkdwn (pure)
-├─ slack-channel.ts     # createSlackBotChannel() — constructs the Flue channel for the bot's shim
-├─ agent-integration.ts # tested core for the bot's registry entry
-├─ default-agent-integration.ts # ./agent-integration export; attaches instructions.md
-├─ instructions.md      # the agent's "When the turn comes from Slack" prompt fragment (see below)
-├─ slack-events.test.ts
-└─ slack-format.test.ts
+├─ index.ts                       # public export surface (see Public API)
+├─ events/
+│  ├─ plan.ts                     # planSlackEvent() + SlackDispatch* types (pure inbound decision)
+│  └─ plan.test.ts
+├─ channel/
+│  ├─ channel.ts                  # createSlackBotChannel() — constructs the Flue channel for the bot's shim
+│  ├─ client.ts                   # the shared WebClient + workerdSafeFetch()
+│  ├─ thread-context.ts           # fetchThreadContext(), enrichWithThreadContext() — inbound enrichment
+│  ├─ reply.ts                    # replyInThread(), postProgressInThread() — outbound tools
+│  ├─ agent-integration.ts        # tested core for the bot's registry entry
+│  ├─ default-agent-integration.ts # ./agent-integration export; attaches instructions.md
+│  ├─ instructions.md             # the agent's "When the turn comes from Slack" prompt fragment (see below)
+│  ├─ client.test.ts
+│  ├─ thread-context.test.ts
+│  └─ reply.test.ts
+└─ format/
+   ├─ mrkdwn.ts                   # toMrkdwn() — GitHub-flavored markdown → Slack mrkdwn (pure)
+   └─ mrkdwn.test.ts
 ```
 
-`instructions.md` is the Slack-specific section of the agent's prompt, exposed via the package's
-`exports` map (`"./instructions.md"`) and attached by the package's `./agent-integration` export.
-Keeping it here puts the prose describing `reply_in_slack_thread` / `post_slack_progress` /
+`planSlackEvent` (pure) and `toMrkdwn` (pure) sit in `events/` and `format/`; everything that needs
+the `WebClient` — the thread-context fetch and the reply/progress tools — sits in `channel/` next to
+the shared `client`. That keeps the folder boundary aligned with what each piece can be tested
+against (a pure call vs an injected fake `WebClient`).
+
+`channel/instructions.md` is the Slack-specific section of the agent's prompt, exposed via the
+package's `exports` map (`"./instructions.md"`) and attached by the package's `./agent-integration`
+export. Keeping it here puts the prose describing `reply_in_slack_thread` / `post_slack_progress` /
 `threadContext` next to the tools it documents. See the root AGENTS.md "Source-dependent prompt".
 
 ## Public API
 
-From `slack-events.ts`:
+From `events/plan.ts`:
 - `planSlackEvent(payload): SlackDispatchPlan | null` — pure decision logic. The plan carries
   `messageTs` (the trigger's own `ts`) so the channel can tell a threaded reply apart from a root.
+- types `SlackDispatchPlan`, `SlackDispatchInput`.
+
+From `channel/client.ts`:
+- `workerdSafeFetch(baseFetch?): typeof fetch` — the fetch wrapper for `@slack/web-api` on workerd.
+- `client` — a shared `WebClient` (the default for the tool factories + thread-context fetch), built
+  with `workerdSafeFetch`.
+
+From `channel/thread-context.ts`:
 - `fetchThreadContext({ channelId, threadTs, excludeTs }, slack?, max?)` — reads a thread via
   `conversations.replies` (paginated, capped) and formats the most recent `max` messages
   oldest-first, excluding the trigger; `null` if empty. Needs the bot token to carry `*:history`.
 - `enrichWithThreadContext(plan, slack?)` — returns the input to dispatch, attaching `threadContext`
   when the turn is a reply inside an existing thread (`ref.threadTs !== messageTs`). Fail-quiet.
+
+From `channel/reply.ts`:
 - `replyInThread(ref, slack?)` — Flue tool factory for the final reply; bound to one thread.
 - `postProgressInThread(ref, slack?)` — Flue tool factory for best-effort progress notes.
-- `workerdSafeFetch(baseFetch?): typeof fetch` — the fetch wrapper for `@slack/web-api` on workerd.
-- `client` — a shared `WebClient` (the default for the tool factories), built with
-  `workerdSafeFetch`.
-- types `SlackDispatchPlan`, `SlackDispatchInput`.
 
-From `slack-format.ts`:
+From `format/mrkdwn.ts`:
 - `toMrkdwn(markdown: string): string` — pure GFM → mrkdwn conversion.
 
-From `slack-channel.ts`:
+From `channel/channel.ts`:
 - `createSlackBotChannel(options): SlackChannel` — builds the Flue channel. `options` is
   `{ enabled, signingSecret?, agentName }`; the package reads no env. The handler runs
   `planSlackEvent`, then `enrichWithThreadContext` (attaches prior thread messages for a threaded
   turn), then dispatches by name (`dispatch({ agent: agentName, ... })`).
 - type `SlackBotChannelOptions`.
 
-From `./agent-integration`:
+From `./agent-integration` (`channel/default-agent-integration.ts`):
 - `createSlackAgentIntegration(channel): SlackAgentIntegration` — returns the bot's registry entry
   for Slack: package-owned prompt fragment, `channel.parseConversationKey`, router
   `reply_in_slack_thread` / `post_slack_progress`, and subagent `post_slack_progress`.
@@ -130,7 +154,8 @@ pnpm --filter @repo/slack test       # vitest run — pure, offline
 pnpm --filter @repo/slack typecheck  # tsc --noEmit
 ```
 
-`slack-events.test.ts` drives `planSlackEvent` with hand-built payloads, exercises the tool
-factories with an **injected fake `WebClient`**, and asserts the `workerdSafeFetch` rewrite with a
-fake `baseFetch`. `slack-format.test.ts` covers `toMrkdwn` conversions directly. No network, no live
-runtime.
+`events/plan.test.ts` drives `planSlackEvent` with hand-built payloads. `channel/reply.test.ts` and
+`channel/thread-context.test.ts` exercise the tool factories and the thread fetch with an
+**injected fake `WebClient`**; `channel/client.test.ts` asserts the `workerdSafeFetch` rewrite with
+a fake `baseFetch`. `format/mrkdwn.test.ts` covers `toMrkdwn` conversions directly. No network, no
+live runtime.

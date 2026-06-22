@@ -1,6 +1,6 @@
 import type { SlackChannel, SlackThreadRef } from "@flue/slack";
 import type { ChannelIntegration } from "@repo/channel-registry";
-import { postProgressInThread, replyInThread } from "./slack-events.ts";
+import { postProgressInThread, replyInThread } from "./reply.ts";
 
 export type SlackAgentIntegration = ChannelIntegration<SlackThreadRef>;
 

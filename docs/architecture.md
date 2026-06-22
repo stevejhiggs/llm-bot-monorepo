@@ -41,7 +41,7 @@ Important files:
 - `bots/d0lt-bot/src/subagents/reviewer/agent.ts` and
   `bots/d0lt-bot/src/subagents/test-runner/agent.ts` build the subagent profiles
   (each subagent gets its own directory with an `agent.ts` and an `instructions.md`).
-- `packages/github/src/fetch-repo.ts` exposes the `fetch_repo` tool both subagents
+- `packages/github/src/repo/fetch-repo.ts` exposes the `fetch_repo` tool both subagents
   use to obtain a shell-safe clone command.
 
 For the web UI path, the browser talks to `apps/chat`, not directly to the runner:
@@ -73,8 +73,8 @@ GitHub webhook
 
 Key contracts:
 
-- `packages/github/src/github-webhook.ts` keeps webhook decision logic pure.
-- `packages/github/src/github-channel.ts` dispatches by agent name, never by
+- `packages/github/src/webhook/plan.ts` keeps webhook decision logic pure.
+- `packages/github/src/channel/channel.ts` dispatches by agent name, never by
   importing the agent.
 - `commentOnIssue(ref)` binds the destination from the verified delivery, so the
   model supplies only the comment body.
@@ -99,8 +99,8 @@ Slack Events API
 
 Key contracts:
 
-- `packages/slack/src/slack-events.ts` keeps event planning pure and does network
-  thread-context work separately.
+- `packages/slack/src/events/plan.ts` keeps event planning pure; the network
+  thread-context work lives separately in `channel/thread-context.ts`.
 - `replyInThread(ref)` fails loud because the final reply matters.
 - `postProgressInThread(ref)` fails quiet because progress messages must not abort
   the main work.

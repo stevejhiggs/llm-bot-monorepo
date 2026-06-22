@@ -1,6 +1,6 @@
 import { defineTool } from "@flue/runtime";
 import * as v from "valibot";
-import { buildCloneScript, parseGitHubTarget } from "./github.ts";
+import { buildCloneScript, parseGitHubTarget } from "./target.ts";
 
 // Shared by both subagents. A Flue tool's execute receives only validated args —
 // no sandbox — so this tool does not clone; it validates the GitHub URL and returns

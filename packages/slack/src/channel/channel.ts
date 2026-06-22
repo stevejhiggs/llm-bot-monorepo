@@ -7,7 +7,8 @@
 
 import { dispatch } from "@flue/runtime";
 import { createSlackChannel, type SlackChannel } from "@flue/slack";
-import { enrichWithThreadContext, planSlackEvent } from "./slack-events.ts";
+import { planSlackEvent } from "../events/plan.ts";
+import { enrichWithThreadContext } from "./thread-context.ts";
 
 export interface SlackBotChannelOptions {
   // Whether the channel acts on events. When false it still constructs (Flue's

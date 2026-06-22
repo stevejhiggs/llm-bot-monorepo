@@ -8,19 +8,31 @@ webhook decision logic, the outbound comment tool, and the channel factory. The 
 
 ## What's in here
 
+The package is grouped into three domain folders — `repo/` (resolving & fetching
+repositories), `webhook/` (inbound delivery planning), and `channel/` (the Flue channel,
+its outbound comment side, and the agent-registry wiring) — plus the public `index.ts`
+barrel and the `skills/` tree. Files are named for their role within a folder; nothing
+carries a redundant `github-` prefix.
+
 ```
 src/
-├─ index.ts            # public export surface (see Public API)
-├─ github.ts           # pure helpers: parse URLs/refs, assemble the clone script (no network/sandbox)
-├─ github-webhook.ts   # planDelivery(), commentOnIssue(), lazy Octokit client + types
-├─ github-channel.ts   # createGitHubBotChannel() — builds the Flue channel
-├─ agent-integration.ts # tested core for the bot's registry entry
-├─ default-agent-integration.ts # ./agent-integration export; attaches instructions.md
-├─ fetch-repo.ts       # the fetch_repo Flue tool (default export → re-exported as fetchRepoTool)
-├─ instructions.md     # the agent's "When the turn comes from GitHub" prompt fragment (see below)
-├─ skills/             # reusable Flue skills exported by this package (see below)
-│  └─ explore-repo/SKILL.md # clone + read-only inspect a repo
-└─ github-webhook.test.ts
+├─ index.ts                       # public export surface (see Public API)
+├─ repo/
+│  ├─ target.ts                   # pure helpers: parse URLs/refs, assemble the clone script (no network/sandbox)
+│  └─ fetch-repo.ts               # the fetch_repo Flue tool (default export → re-exported as fetchRepoTool)
+├─ webhook/
+│  ├─ plan.ts                     # planDelivery() + Dispatch* types (pure inbound decision logic)
+│  └─ plan.test.ts
+├─ channel/
+│  ├─ channel.ts                  # createGitHubBotChannel() — builds the Flue channel
+│  ├─ comment.ts                  # commentOnIssue() outbound tool + lazy Octokit getClient()
+│  ├─ agent-integration.ts        # tested core for the bot's registry entry
+│  ├─ default-agent-integration.ts # ./agent-integration export; attaches instructions.md
+│  ├─ instructions.md             # the agent's "When the turn comes from GitHub" prompt fragment (see below)
+│  ├─ comment.test.ts
+│  └─ agent-integration.test.ts
+└─ skills/                        # reusable Flue skills exported by this package (see below)
+   └─ explore-repo/SKILL.md       # clone + read-only inspect a repo
 ```
 
 `skills/explore-repo/SKILL.md` is a reusable Flue **skill** that walks an agent through cloning a
@@ -33,14 +45,14 @@ descriptive name is the directory. Any agent that registers the skill must also 
 `fetchRepoTool` (the skill calls `fetch_repo`). The d0lt-bot router and both subagents register it.
 Add future skills as sibling directories under `skills/`.
 
-`instructions.md` is the GitHub-specific section of the agent's prompt, exposed via the package's
-`exports` map (`"./instructions.md"`) and attached by the package's `./agent-integration` export.
-Keeping it here puts the prose describing `comment_on_github_issue` and the GitHub event shape next
-to the channel it documents. See the root AGENTS.md "Source-dependent prompt".
+`channel/instructions.md` is the GitHub-specific section of the agent's prompt, exposed via the
+package's `exports` map (`"./instructions.md"`) and attached by the package's `./agent-integration`
+export. Keeping it here puts the prose describing `comment_on_github_issue` and the GitHub event
+shape next to the channel it documents. See the root AGENTS.md "Source-dependent prompt".
 
 ## Public API
 
-From `github.ts` (pure, no I/O):
+From `repo/target.ts` (pure, no I/O):
 - `parseGitHubTarget(url, refOverride?): GitHubTarget` — parse a repo or PR URL.
 - `parsePrTarget(url)` — like above but rejects non-PR URLs.
 - `assertSafeRef(ref): string` — reject refs that aren't shell-safe.
@@ -48,30 +60,32 @@ From `github.ts` (pure, no I/O):
 - `buildCloneScript(target): string` — the shell script a subagent runs to clone.
 - type `GitHubTarget = { kind: "pr"; owner; repo; number } | { kind: "repo"; owner; repo; ref? }`.
 
-From `github-webhook.ts`:
+From `repo/fetch-repo.ts`:
+- `fetchRepoTool` — the `fetch_repo` Flue tool.
+
+From `webhook/plan.ts`:
 - `planDelivery(delivery, phrase): DispatchPlan | null` — pure decision logic.
+- types `DispatchPlan`, `DispatchInput`, `DispatchTarget`.
+
+From `channel/comment.ts`:
 - `commentOnIssue(ref, octokit?)` — Flue tool factory bound to one issue/PR (`octokit` injectable).
 - `getClient()` — lazily creates the shared throttled Octokit authenticated by `GITHUB_TOKEN`. Do
   not create the Octokit client at module scope: `@octokit/plugin-throttling` starts Bottleneck
   timers during client construction, and Cloudflare Workers reject timers during global scope
   evaluation.
-- types `DispatchPlan`, `DispatchInput`, `DispatchTarget`.
 
-From `github-channel.ts`:
+From `channel/channel.ts`:
 - `createGitHubBotChannel(options): GitHubChannel` — builds the Flue channel. `options` is
   `{ enabled, agentName, webhookSecret?, triggerPhrase? }`; the package reads no env. The handler
   runs `planDelivery` then dispatches by name (`dispatch({ agent: agentName, ... })`).
   `triggerPhrase` defaults to `@<agentName>`.
 - type `GitHubBotChannelOptions`.
 
-From `./agent-integration`:
+From `./agent-integration` (`channel/default-agent-integration.ts`):
 - `createGitHubAgentIntegration(channel): GitHubAgentIntegration` — returns the bot's registry entry
   for GitHub: package-owned prompt fragment, `channel.parseConversationKey`, and the
   `comment_on_github_issue` router tool.
 - type `GitHubAgentIntegration`.
-
-From `fetch-repo.ts`:
-- `fetchRepoTool` — the `fetch_repo` Flue tool.
 
 Skill subpath export (not from `index.ts`):
 - `@repo/github/skills/explore-repo/SKILL.md` — the `explore-repo` skill, imported with
@@ -134,6 +148,7 @@ pnpm --filter @repo/github test       # vitest run — pure, offline
 pnpm --filter @repo/github typecheck  # tsc --noEmit
 ```
 
-`github-webhook.test.ts` drives `planDelivery` with hand-built payloads and exercises
-`commentOnIssue` with an **injected fake Octokit**. Follow that pattern: test the pure functions
-directly and inject the client into the tool factories.
+`webhook/plan.test.ts` drives `planDelivery` with hand-built payloads; `channel/comment.test.ts`
+exercises `commentOnIssue` with an **injected fake Octokit** (and asserts importing the module
+starts no throttling timers). Follow that pattern: test the pure functions directly and inject the
+client into the tool factories.

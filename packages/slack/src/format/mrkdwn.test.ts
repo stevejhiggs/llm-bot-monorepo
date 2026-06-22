@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toMrkdwn } from "./slack-format.ts";
+import { toMrkdwn } from "./mrkdwn.ts";
 
 describe("toMrkdwn", () => {
   it("converts bold to single-asterisk", () => {

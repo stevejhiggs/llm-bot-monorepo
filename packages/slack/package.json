@@ -8,10 +8,10 @@
       "default": "./src/index.ts"
     },
     "./agent-integration": {
-      "types": "./src/default-agent-integration.ts",
-      "default": "./src/default-agent-integration.ts"
+      "types": "./src/channel/default-agent-integration.ts",
+      "default": "./src/channel/default-agent-integration.ts"
     },
-    "./instructions.md": "./src/instructions.md"
+    "./instructions.md": "./src/channel/instructions.md"
   },
   "scripts": {
     "test": "vitest run",

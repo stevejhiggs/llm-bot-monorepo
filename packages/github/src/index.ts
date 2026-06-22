@@ -5,14 +5,13 @@ export {
   looksPrivate,
   parseGitHubTarget,
   parsePrTarget,
-} from "./github.ts";
+} from "./repo/target.ts";
+export { default as fetchRepoTool } from "./repo/fetch-repo.ts";
 export {
-  commentOnIssue,
   type DispatchInput,
   type DispatchPlan,
   type DispatchTarget,
-  getClient,
   planDelivery,
-} from "./github-webhook.ts";
-export { createGitHubBotChannel, type GitHubBotChannelOptions } from "./github-channel.ts";
-export { default as fetchRepoTool } from "./fetch-repo.ts";
+} from "./webhook/plan.ts";
+export { commentOnIssue, getClient } from "./channel/comment.ts";
+export { createGitHubBotChannel, type GitHubBotChannelOptions } from "./channel/channel.ts";
