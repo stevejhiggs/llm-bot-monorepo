@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { getOrCreateConversationId } from "../lib/conversation.ts";
+import { type FilePart, viewFile } from "../lib/file-part.ts";
 import { type ToolPart, viewTool } from "../lib/tool-part.ts";
 import { type DisplayMessage, mergeTranscript } from "../lib/transcript.ts";
 
@@ -94,11 +95,11 @@ export function Chat() {
 function Message({ message }: { message: DisplayMessage }) {
   const isUser = message.role === "user";
   // Spoken parts (the model's words) go in a chat bubble; tool calls render as
-  // their own activity blocks below. Splitting them means a tool-only turn shows
-  // its work instead of an empty bubble. Text precedes tool calls within a turn,
-  // so rendering speech first preserves order.
+  // their own activity blocks below, and file parts render as attachment rows.
+  // Splitting them means non-text turns show their work instead of an empty bubble.
   const speech = message.parts.filter((p) => p.type === "text" || p.type === "reasoning");
   const tools = message.parts.filter((p): p is ToolPart => p.type === "dynamic-tool");
+  const files = message.parts.filter((p): p is FilePart => p.type === "file");
 
   return (
     <div className={isUser ? "text-right" : "text-left"}>
@@ -138,6 +139,9 @@ function Message({ message }: { message: DisplayMessage }) {
       {tools.map((part, i) => (
         <ToolCall key={i} part={part} />
       ))}
+      {files.map((part, i) => (
+        <FileAttachment key={i} part={part} />
+      ))}
     </div>
   );
 }
@@ -172,5 +176,26 @@ function ToolCall({ part }: { part: ToolPart }) {
         )}
       </div>
     </details>
+  );
+}
+
+function FileAttachment({ part }: { part: FilePart }) {
+  const file = viewFile(part);
+  const label = file.mediaType ? `${file.label} · ${file.mediaType}` : file.label;
+  return (
+    <div className="my-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700">
+      {file.url ? (
+        <a
+          className="font-medium text-blue-700 underline"
+          href={file.url}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {label}
+        </a>
+      ) : (
+        <span className="font-medium">{label}</span>
+      )}
+    </div>
   );
 }
