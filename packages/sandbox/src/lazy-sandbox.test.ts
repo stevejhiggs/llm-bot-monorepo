@@ -68,6 +68,63 @@ test("cwd and resolvePath answer without triggering prepare", async () => {
   expect(createSessionEnv).not.toHaveBeenCalled();
 });
 
+test("answers Flue workspace discovery probes without creating the inner env", async () => {
+  const prepare = vi.fn(async () => {});
+  const createSessionEnv = vi.fn(() => Promise.resolve(fakeEnv()));
+  const env = await lazySandbox({ createSessionEnv }, prepare, {
+    cwd: "/",
+    discoveryCwd: "/workspace",
+  }).createSessionEnv({ id: "abc" });
+
+  await expect(env.exists("/workspace/AGENTS.md")).resolves.toBe(false);
+  await expect(env.exists("/workspace/CLAUDE.md")).resolves.toBe(false);
+  await expect(env.exists("/workspace/.agents/skills")).resolves.toBe(false);
+  await expect(env.readdir("/workspace")).resolves.toEqual([]);
+
+  expect(prepare).not.toHaveBeenCalled();
+  expect(createSessionEnv).not.toHaveBeenCalled();
+});
+
+test("delegates real filesystem checks after lightweight discovery", async () => {
+  const log: string[] = [];
+  const prepare = vi.fn(async () => {
+    log.push("prepare");
+  });
+  const env = await lazySandbox(innerFactory(fakeEnv(log)), prepare, {
+    cwd: "/",
+    discoveryCwd: "/workspace",
+  }).createSessionEnv({ id: "abc" });
+
+  await env.exists("/workspace/AGENTS.md");
+  const result = await env.exists("/workspace/package.json");
+
+  expect(result).toBe(true);
+  expect(prepare).toHaveBeenCalledTimes(1);
+  expect(log).toEqual(["prepare", "exists"]);
+});
+
+test("can defer inner factory construction until a real operation", async () => {
+  const log: string[] = [];
+  const createInner = vi.fn(() => innerFactory(fakeEnv(log)));
+  const env = await lazySandbox(
+    createInner,
+    async () => {
+      log.push("prepare");
+    },
+    {
+      cwd: "/",
+      discoveryCwd: "/workspace",
+    },
+  ).createSessionEnv({ id: "abc" });
+
+  await env.exists("/workspace/AGENTS.md");
+  expect(createInner).not.toHaveBeenCalled();
+
+  await env.exec("echo hi");
+  expect(createInner).toHaveBeenCalledTimes(1);
+  expect(log).toEqual(["prepare", "exec"]);
+});
+
 test("runs prepare exactly once, before the first delegated operation", async () => {
   const log: string[] = [];
   const prepare = vi.fn(async () => {

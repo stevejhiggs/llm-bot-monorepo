@@ -125,16 +125,19 @@ route. **All three entry points are opt-in** via `CHANNEL_<NAME>_ENABLE` env var
   secret needed to boot) and its handler ignores every delivery, leaving the route mounted but
   inert. Enabling it requires the real secret (the factory throws on an empty one when enabled).
 
-The router owns the sandbox and delegates to two **subagents** (`reviewer`, `test_runner` under
-`src/subagents/`) via Flue's built-in `task` capability. Subagents never clone directly: the
-shared `fetchRepoTool` (from `@repo/github`) validates a GitHub URL and returns an
+The router attaches a lightweight sandbox facade and delegates to two **subagents** (`reviewer`,
+`test_runner` under `src/subagents/`) via Flue's built-in `task` capability. Subagents never clone
+directly: the shared `fetchRepoTool` (from `@repo/github`) validates a GitHub URL and returns an
 injection-safe shell command that the subagent runs with its bash tool inside the router's sandbox.
+The facade answers Flue's automatic workspace context discovery (`AGENTS.md`, skills, directory
+listing) without booting the real sandbox, then provisions the full sandbox on the first real
+workspace operation.
 
 ### Runtime-selected sandbox (dual target)
 
-The router owns one sandbox, selected at runtime. `resolveSandboxKind(process.env)` (from
-`@repo/sandbox`) reads `FLUE_SANDBOX`, and the agent initializer picks the implementation with a
-dynamic `import()` — `@repo/sandbox/node` (host `local()` sandbox, dev default) or
+The router owns one lightweight sandbox facade selected at runtime. `resolveSandboxKind(process.env)`
+(from `@repo/sandbox`) reads `FLUE_SANDBOX`, and the agent initializer picks the implementation
+with a dynamic `import()` — `@repo/sandbox/node` (host `local()` sandbox, dev default) or
 `@repo/sandbox/cloudflare` (a Cloudflare Sandbox **container** Durable Object, when deployed).
 **Keep that import dynamic:** it is what keeps each target's deps out of the other target's bundle,
 and the workerd build (`build:cf`) fails otherwise. The bot passes a `secrets` record

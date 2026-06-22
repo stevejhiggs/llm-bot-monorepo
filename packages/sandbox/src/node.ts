@@ -24,7 +24,7 @@ export function createNodeSandbox({
     async () => {
       await mkdir(cwd, { recursive: true });
     },
-    { cwd: "/" },
+    { cwd: "/", discoveryCwd: cwd },
   );
   return { sandbox, cwd };
 }

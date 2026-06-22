@@ -16,6 +16,12 @@ const GATED_METHODS = [
 ] as const satisfies readonly (keyof SessionEnv)[];
 
 type AsyncMethod = (...args: unknown[]) => Promise<unknown>;
+type LazyInner = SandboxFactory | (() => SandboxFactory);
+
+interface LazySandboxOptions {
+  cwd: string;
+  discoveryCwd?: string;
+}
 
 // Defers a sandbox's inner env construction and one-time expensive setup — a
 // container boot on Cloudflare, the scratch-dir mkdir on node — until the first
@@ -28,19 +34,22 @@ type AsyncMethod = (...args: unknown[]) => Promise<unknown>;
 // op runs. `cwd` and `resolvePath` are answered from `options.cwd`, without
 // calling the wrapped factory.
 export function lazySandbox(
-  inner: SandboxFactory,
+  inner: LazyInner,
   prepare: (env: SessionEnv) => Promise<void>,
-  options: { cwd: string },
+  options: LazySandboxOptions,
 ): SandboxFactory {
+  let innerFactory: SandboxFactory | undefined;
+  const getInner = () => (innerFactory ??= typeof inner === "function" ? inner() : inner);
+
   return {
-    tools: inner.tools,
+    tools: typeof inner === "function" ? undefined : inner.tools,
     async createSessionEnv(sessionOptions) {
       let env: SessionEnv | undefined;
       let envPromise: Promise<SessionEnv> | undefined;
       let prepared: Promise<SessionEnv> | undefined;
 
       const loadEnv = () =>
-        env ? Promise.resolve(env) : (envPromise ??= inner.createSessionEnv(sessionOptions));
+        env ? Promise.resolve(env) : (envPromise ??= getInner().createSessionEnv(sessionOptions));
       const ready = () =>
         (prepared ??= loadEnv().then(async (loaded) => {
           env = loaded;
@@ -51,6 +60,10 @@ export function lazySandbox(
       const gated: Record<string, AsyncMethod> = {};
       for (const name of GATED_METHODS) {
         gated[name] = async (...args) => {
+          const lightweightResult =
+            !env && !envPromise ? lightweightDiscoveryResult(name, args, options) : undefined;
+          if (lightweightResult !== undefined) return lightweightResult;
+
           const loaded = await ready();
           const method = loaded[name] as AsyncMethod;
           return method.apply(loaded, args);
@@ -66,11 +79,43 @@ export function lazySandbox(
   };
 }
 
+function lightweightDiscoveryResult(
+  name: keyof SessionEnv,
+  args: unknown[],
+  options: LazySandboxOptions,
+): Promise<unknown> | undefined {
+  if (!options.discoveryCwd || typeof args[0] !== "string") return undefined;
+
+  const path = normalizePath(args[0]);
+  const discoveryCwd = normalizePath(options.discoveryCwd);
+
+  if (name === "exists" && isDiscoveryProbe(path, discoveryCwd)) {
+    return Promise.resolve(false);
+  }
+  if (name === "readdir" && path === discoveryCwd) {
+    return Promise.resolve([]);
+  }
+
+  return undefined;
+}
+
+function isDiscoveryProbe(path: string, discoveryCwd: string): boolean {
+  return (
+    path === joinPath(discoveryCwd, "AGENTS.md") ||
+    path === joinPath(discoveryCwd, "CLAUDE.md") ||
+    path === joinPath(discoveryCwd, ".agents/skills")
+  );
+}
+
 function makeResolvePath(cwd: string) {
   return (path: string) => {
     if (path.startsWith("/")) return normalizePath(path);
     return normalizePath(cwd === "/" ? `/${path}` : `${cwd}/${path}`);
   };
+}
+
+function joinPath(base: string, path: string): string {
+  return normalizePath(base === "/" ? `/${path}` : `${base}/${path}`);
 }
 
 function normalizePath(path: string): string {

@@ -95,10 +95,10 @@ pnpm build          # turbo run build (flue build --target node)
 ```
 bots/d0lt-bot/             # the first bot (Flue app); more bots can live alongside it under bots/
 ├─ src/
-│  ├─ agents/              # root router agent (owns the sandbox) + routing instructions
+│  ├─ agents/              # root router agent (lightweight sandbox facade) + instructions
 │  ├─ subagents/           # reviewer + test_runner profiles + instructions
 │  ├─ channels/            # discovered GitHub/Slack channel shims (call the package factories)
-│  └─ lib/                 # channel-flags (CHANNEL_<NAME>_ENABLE gating)
+│  └─ lib/                 # channel flags + pure routing helpers
 ├─ flue.config.ts
 └─ package.json
 apps/chat/                 # web chat UI (TanStack Start); proxies to the runner

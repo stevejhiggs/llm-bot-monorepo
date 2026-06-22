@@ -24,7 +24,7 @@ Flue's built-in `task` capability:
 ```
   chat (flue connect) ─┐
   GitHub webhooks ─────┼──▶ d0lt-bot (router agent, owns the sandbox)
-  Slack events ────────┘        │ delegates via `task`
+  Slack events ────────┘        │ lightweight sandbox; full sandbox on first workspace op
                 ┌───────────────┴────────────────┐
                 ▼                                 ▼
             reviewer                        test_runner

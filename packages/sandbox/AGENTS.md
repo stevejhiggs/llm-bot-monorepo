@@ -23,7 +23,7 @@ src/
 
 - **`@repo/sandbox`** (target-agnostic — imports neither adapter):
   - `resolveSandboxKind(env: Record<string, string | undefined>, isWorkerd?: boolean): "local" | "cloudflare"`
-  - `lazySandbox(inner: SandboxFactory, prepare: (env: SessionEnv) => Promise<void>, options: { cwd: string }): SandboxFactory`
+  - `lazySandbox(inner: SandboxFactory | (() => SandboxFactory), prepare: (env: SessionEnv) => Promise<void>, options: { cwd: string; discoveryCwd?: string }): SandboxFactory`
   - `workDir(appName: string, runId: string): string` — scratch dir namespaced by `appName`
   - type `SandboxKind = "local" | "cloudflare"`
 - **`@repo/sandbox/node`**: `createNodeSandbox({ id: string, appName: string, secrets?: Record<string, string | undefined> }): { sandbox: SandboxFactory, cwd: string }`
@@ -49,20 +49,26 @@ time.
 
 ### 2. Lazy provisioning — defer the expensive op to first use
 
-`lazySandbox(inner, prepare, { cwd })` wraps a `SandboxFactory` so the wrapped sandbox env creation
-and one-time expensive setup run at most once, **before** the first shell/file op, and not at all if
-no such op happens:
+`lazySandbox(inner, prepare, { cwd, discoveryCwd })` wraps a `SandboxFactory` (or a thunk that builds
+one) so the wrapped sandbox env creation and one-time expensive setup run at most once, **before**
+the first real shell/file op, and not at all if no such op happens:
 
+- If `inner` is a thunk, constructing the real sandbox factory is also deferred until the first
+  delegated op. The Cloudflare adapter uses this so `getSandbox()` is not called for plain replies.
 - It gates every async `SessionEnv` method (`exec`, `readFile`, `writeFile`, `stat`, `readdir`,
   `exists`, `mkdir`, `rm`, …) behind memoized inner env creation plus `prepare()`.
+- If `discoveryCwd` is provided, it answers Flue's startup context probes in memory before the inner
+  env is created: `exists(<cwd>/AGENTS.md)`, `exists(<cwd>/CLAUDE.md)`,
+  `exists(<cwd>/.agents/skills)`, and `readdir(<cwd>)`. Those return "absent/empty" and must not
+  boot the real sandbox.
 - It answers the **sync** members (`cwd`, `resolvePath`) from the configured `cwd`, so they answer
   without constructing the inner env, triggering `prepare`, or booting.
 - `prepare` runs before the first delegated op, so anything it sets up (injecting secrets into the
   container) is in place before the first clone.
 
-For this to hold, the adapters (`node.ts`, `cloudflare.ts`) must **construct a `SandboxFactory`
-without doing eager I/O** and pass a cheap base cwd into `lazySandbox`. Keep all real work inside
-the inner adapter's async methods or the `prepare` callback.
+For this to hold, the adapters (`node.ts`, `cloudflare.ts`) must **avoid eager I/O** and pass a
+cheap base cwd into `lazySandbox`. Keep all real work inside the inner adapter's async methods, the
+deferred inner-factory thunk, or the `prepare` callback.
 
 ### 3. Secrets are generic and injected before first use
 

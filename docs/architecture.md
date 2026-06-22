@@ -27,8 +27,7 @@ flue connect or apps/chat
   -> d0lt-bot agent instance
   -> source resolves to chat
   -> base prompt only
-  -> reviewer or test_runner subagent
-  -> shared sandbox
+  -> lightweight sandbox facade + reviewer/test_runner profiles
   -> final answer in the same conversation
 ```
 
@@ -108,8 +107,14 @@ Key contracts:
 
 ## Sandbox Selection
 
-The router owns one sandbox per agent instance. The implementation is selected at
-runtime:
+The router attaches a lightweight sandbox facade on every turn. Flue's automatic
+workspace context discovery calls filesystem methods such as `exists` and
+`readdir` before the model runs; the facade answers those known probes in memory
+so a plain reply does not wake the Cloudflare Sandbox. The full sandbox is
+provisioned only when the model or a subagent performs a real workspace operation
+such as `bash`, file reads/writes, or non-discovery filesystem checks.
+
+The backing implementation is selected at runtime:
 
 ```
 FLUE_SANDBOX unset/local

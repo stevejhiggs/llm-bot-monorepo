@@ -34,14 +34,18 @@ export const route: AgentRouteHandler | undefined = channelEnabled("http")
   ? async (_c, next) => next()
   : undefined;
 
-// Root router. It owns the sandbox; its two subagents share it. The sandbox
-// implementation is selected at runtime: the node local() sandbox for dev
-// (FLUE_SANDBOX unset), or a Cloudflare container sandbox when deployed
-// (FLUE_SANDBOX=cloudflare). Dynamic import() keeps each target's sandbox
-// module out of the other target's bundle.
+// Root router. It owns a lightweight sandbox facade; its two subagents share it.
+// The facade answers Flue's startup context probes without booting the real
+// sandbox, then provisions the full node/cloudflare implementation on first real
+// workspace operation. Dynamic import() keeps each target's sandbox module out of
+// the other target's bundle.
 export default createAgent(async ({ id, env }) => {
-  const kind = resolveSandboxKind(process.env);
+  // Classify the turn's source once, then derive both the prompt fragment and the
+  // outbound tool set from the same registry entry.
+  const conversation = resolveRegisteredConversation(id, CHANNEL_REGISTRY);
+  const instructions = [baseInstructions, conversation.instructions].filter(Boolean).join("\n");
 
+  const kind = resolveSandboxKind(process.env);
   const { sandbox, cwd } =
     kind === "cloudflare"
       ? (await import("@repo/sandbox/cloudflare")).createCloudflareSandbox({
@@ -54,11 +58,6 @@ export default createAgent(async ({ id, env }) => {
           appName: "d0lt-bot",
           secrets: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },
         });
-
-  // Classify the turn's source once, then derive both the prompt fragment and the
-  // outbound tool set from the same registry entry.
-  const conversation = resolveRegisteredConversation(id, CHANNEL_REGISTRY);
-  const instructions = [baseInstructions, conversation.instructions].filter(Boolean).join("\n");
 
   return {
     model: "anthropic/claude-sonnet-4-6",

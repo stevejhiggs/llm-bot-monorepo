@@ -16,21 +16,24 @@ export function createCloudflareSandbox({
   sandboxBinding: SandboxBinding;
   secrets?: Record<string, string | undefined>;
 }) {
-  const stub = getSandbox(sandboxBinding, id);
+  let stub: ReturnType<typeof getSandbox> | undefined;
   // setEnvVars() boots the container, so defer it (via lazySandbox) to the first
   // shell/file op: a turn that never touches the sandbox doesn't spin one up. The
   // secrets are injected before that first op, so $GITHUB_TOKEN clones still
   // authenticate. (getSandbox() SandboxOptions does not accept envVars; injection
   // is via the stub method after the stub is created.)
   const sandbox = lazySandbox(
-    cloudflareSandbox(stub),
+    () => {
+      stub = getSandbox(sandboxBinding, id);
+      return cloudflareSandbox(stub);
+    },
     async () => {
       // Skip undefined secrets, and skip setEnvVars entirely when none remain — an
       // empty call would boot the container for nothing.
       const defined = Object.entries(secrets ?? {}).filter(([, value]) => value != null);
-      if (defined.length > 0) await stub.setEnvVars(Object.fromEntries(defined));
+      if (defined.length > 0) await stub?.setEnvVars(Object.fromEntries(defined));
     },
-    { cwd: "/" },
+    { cwd: "/", discoveryCwd: "/workspace" },
   );
   return { sandbox, cwd: "/workspace" };
 }

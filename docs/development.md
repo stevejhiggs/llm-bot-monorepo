@@ -90,7 +90,11 @@ subagents. Final reply tools usually belong only to the router.
 4. Preserve lazy provisioning: constructing a sandbox factory, or creating its
    session env, should not boot a container or do expensive I/O. The first async
    shell/file operation should pay that cost.
-5. Run both bundle gates after changes:
+5. Preserve the lightweight discovery facade in `lazySandbox()`: Flue's startup
+   probes for `AGENTS.md`, `CLAUDE.md`, `.agents/skills`, and the cwd listing must
+   not boot the full sandbox. Non-discovery filesystem checks and shell/file
+   operations must still delegate to the real sandbox.
+6. Run both bundle gates after changes:
 
 ```bash
 pnpm build
