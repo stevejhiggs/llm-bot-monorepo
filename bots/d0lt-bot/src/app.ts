@@ -12,7 +12,7 @@
 import { observe } from "@flue/runtime";
 import { flue } from "@flue/runtime/routing";
 import { Hono } from "hono";
-import { createConsoleObserver } from "./lib/observe.ts";
+import { createConsoleObserver } from "@repo/observability";
 
 observe(createConsoleObserver());
 

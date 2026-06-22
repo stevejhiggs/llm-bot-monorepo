@@ -19,6 +19,7 @@
     "@flue/runtime": "catalog:flue",
     "@flue/slack": "catalog:flue",
     "@repo/github": "workspace:*",
+    "@repo/observability": "workspace:*",
     "@repo/sandbox": "workspace:*",
     "@repo/slack": "workspace:*",
     "agents": "^0.16.2",

@@ -1,14 +1,15 @@
 // Turns Flue's live `observe(...)` event stream into structured console logs.
-// Registered once at startup from `app.ts`. On Cloudflare these lines land in
-// Workers Logs (Workers > d0lt-bot > Observability); on node they print to the
-// process. This is intentionally a console sink, not an OpenTelemetry exporter:
-// it gives a queryable activity trail (what tool ran, which subagent, where a
-// turn failed) with zero external backend. See `@flue/opentelemetry` if/when
-// rich distributed traces to an OTLP backend are wanted.
+// A bot registers it once at startup from its `app.ts`. On Cloudflare these
+// lines land in Workers Logs (Workers > <bot> > Observability); on node they
+// print to the process. This is intentionally a console sink, not an
+// OpenTelemetry exporter: it gives a queryable activity trail (what tool ran,
+// which subagent, where a turn failed) with zero external backend. See
+// `@flue/opentelemetry` if/when rich distributed traces to an OTLP backend are
+// wanted.
 //
 // Pure and unit-tested: the log sink is injected (defaults to `console`), so a
-// test drives the observer with a fake sink — matching the channel modules'
-// injected-client pattern.
+// test drives the observer with a fake sink — matching the injected-client
+// pattern used across the `@repo/*` packages.
 
 import type { FlueEvent, FlueEventSubscriber } from "@flue/runtime";
 

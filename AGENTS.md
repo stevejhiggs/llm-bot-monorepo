@@ -13,7 +13,7 @@ tests inside a sandbox, and can be driven from chat, GitHub comments, or Slack.
   `apps/`. Root scripts fan out via `turbo`. `bots/d0lt-bot` is the first bot — the Flue runner
   (the agent). `apps/chat` is a TanStack Start web UI that talks to the runner — see "The chat web
   app". Additional bots are added under `bots/`. Shared functionality lives in source-only packages
-  under `packages/` (`@repo/sandbox`, `@repo/github`, `@repo/slack`) — bots consume them via
+  under `packages/` (`@repo/sandbox`, `@repo/github`, `@repo/slack`, `@repo/observability`) — bots consume them via
   `workspace:*` and TypeScript resolves `.ts` sources directly (no build step required).
 - **Stack:** TypeScript (ESM, `NodeNext`), Node 24, pnpm 11. Flue runtime + CLI (`@flue/*`,
   currently `1.0.0-beta`). Tests with Vitest; lint/format with oxlint + oxfmt. Deploys to Node or
@@ -51,7 +51,7 @@ Tests are pure and offline — no network, no live Flue runtime. Channel logic i
 the pure `plan*()` functions directly and invoking the outbound tools with an **injected fake
 client** (Octokit/WebClient). Follow that pattern for new channels; do not require the agent graph
 in a test (the agent imports markdown via `with { type: "markdown" }`, which Vitest's loader does
-not resolve without the Flue plugin — that is why testable logic lives in the `@repo/*` packages (and the bot's `lib/channel-flags.ts` / `lib/observe.ts`), not in `channels/` or the agent graph).
+not resolve without the Flue plugin — that is why testable logic lives in the `@repo/*` packages (and the bot's `lib/channel-flags.ts`), not in `channels/` or the agent graph).
 
 ## Code style
 
@@ -71,7 +71,7 @@ not resolve without the Flue plugin — that is why testable logic lives in the 
 
 ### Shared packages (`packages/`)
 
-Reusable, bot-agnostic logic lives in three **source-only** packages (no build step — consumers
+Reusable, bot-agnostic logic lives in four **source-only** packages (no build step — consumers
 import the `.ts` directly). Each is authoritative for its own internals; this file points to them
 rather than repeating them. When you change a package, read its `AGENTS.md` first.
 
@@ -83,8 +83,11 @@ rather than repeating them. When you change a package, read its `AGENTS.md` firs
   subagents clone with.
 - **[`@repo/slack`](packages/slack/AGENTS.md)** — Slack Events API decision logic (`planSlackEvent`),
   the outbound `replyInThread` / `postProgressInThread` tools, and the GFM→mrkdwn `toMrkdwn`.
+- **[`@repo/observability`](packages/observability/AGENTS.md)** — `createConsoleObserver`, the
+  console sink that projects Flue's `observe(...)` event stream into structured logs (failures, slow
+  ops, an activity trail). The bot's `app.ts` registers it at startup.
 
-They form a flat DAG (`bots/d0lt-bot → {sandbox, github, slack}`, no inter-package edges) and share
+They form a flat DAG (`bots/d0lt-bot → {sandbox, github, slack, observability}`, no inter-package edges) and share
 versions through pnpm catalogs in `pnpm-workspace.yaml` (`flue` / `cf` / `external`) — keep
 `@flue/runtime` resolving to the patched `1.0.0-beta.2`.
 
@@ -181,13 +184,14 @@ injected into the sandbox env and referenced by name as
 `$GITHUB_TOKEN` in the clone script — it never enters the model's context. See `.env.example` for
 the full list.
 
-### Observability (`src/app.ts` + `lib/observe.ts`)
+### Observability (`src/app.ts` + `@repo/observability`)
 
 Flue emits no telemetry on its own — you must register an observer. `src/app.ts` is the authored
 application entrypoint (Flue generates a default when it's absent); we author it for one reason: to
 call `observe(createConsoleObserver())` at module-eval time, before any request/alarm delivers work.
 It otherwise mounts `flue()` at `/` exactly like the default, so routing is unchanged — keep that
-mount if you edit it. `lib/observe.ts` is the **testable** half (mirroring the channel split): a pure
+mount if you edit it. `createConsoleObserver` is the **testable** half (mirroring the channel
+split), and lives in **[`@repo/observability`](packages/observability/AGENTS.md)**: a pure
 `createConsoleObserver(sink = console)` that turns the `observe(...)` event stream
 ([events reference](https://flueframework.com/docs/api/events-reference/)) into structured console
 logs — failures (`submission_settled` failed, `operation`/`turn`/`tool`/`task` `isError`), slow
