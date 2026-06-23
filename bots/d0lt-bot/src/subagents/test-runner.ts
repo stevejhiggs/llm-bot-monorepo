@@ -1,5 +1,6 @@
 import { defineAgentProfile, type ToolDefinition } from "@flue/runtime";
 import instructions from "./test-runner.md" with { type: "markdown" };
+import exploreRepo from "@repo/github/skills/explore-repo/SKILL.md" with { type: "skill" };
 import { fetchRepoTool } from "@repo/github";
 
 // Subagent profile delegated to by d0lt-bot via its built-in `task` capability.
@@ -15,6 +16,7 @@ export function createTestRunner(extraTools: ToolDefinition[] = []) {
       "Runs a repository’s tests: clones the code into the sandbox, detects the stack, installs " +
       "dependencies, runs the tests, and returns a structured pass/fail result.",
     instructions,
+    skills: [exploreRepo],
     tools: [fetchRepoTool, ...extraTools],
   });
 }

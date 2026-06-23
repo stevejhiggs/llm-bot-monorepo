@@ -18,8 +18,20 @@ src/
 ├─ default-agent-integration.ts # ./agent-integration export; attaches instructions.md
 ├─ fetch-repo.ts       # the fetch_repo Flue tool (default export → re-exported as fetchRepoTool)
 ├─ instructions.md     # the agent's "When the turn comes from GitHub" prompt fragment (see below)
+├─ skills/             # reusable Flue skills exported by this package (see below)
+│  └─ explore-repo/SKILL.md # clone + read-only inspect a repo
 └─ github-webhook.test.ts
 ```
+
+`skills/explore-repo/SKILL.md` is a reusable Flue **skill** that walks an agent through cloning a
+GitHub repo or PR into its sandbox and inspecting it (read-only by default) to answer arbitrary
+questions. It lives here because its whole procedure is built around `fetch_repo`, so the skill and
+the tool it depends on version together. It is exposed via the package's `exports` map
+(`"./skills/explore-repo/SKILL.md"`) and imported with `with { type: "skill" }`. The filename must
+stay `SKILL.md` — that is what Flue's `*/SKILL.md` ambient types as a `SkillReference`; the skill's
+descriptive name is the directory. Any agent that registers the skill must also register
+`fetchRepoTool` (the skill calls `fetch_repo`). The d0lt-bot router and both subagents register it.
+Add future skills as sibling directories under `skills/`.
 
 `instructions.md` is the GitHub-specific section of the agent's prompt, exposed via the package's
 `exports` map (`"./instructions.md"`) and attached by the package's `./agent-integration` export.
@@ -60,6 +72,10 @@ From `./agent-integration`:
 
 From `fetch-repo.ts`:
 - `fetchRepoTool` — the `fetch_repo` Flue tool.
+
+Skill subpath export (not from `index.ts`):
+- `@repo/github/skills/explore-repo/SKILL.md` — the `explore-repo` skill, imported with
+  `with { type: "skill" }`. Pairs with `fetchRepoTool`.
 
 ## Contracts (do not break these)
 

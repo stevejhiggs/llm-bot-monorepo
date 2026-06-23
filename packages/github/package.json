@@ -11,7 +11,8 @@
       "types": "./src/default-agent-integration.ts",
       "default": "./src/default-agent-integration.ts"
     },
-    "./instructions.md": "./src/instructions.md"
+    "./instructions.md": "./src/instructions.md",
+    "./skills/explore-repo/SKILL.md": "./src/skills/explore-repo/SKILL.md"
   },
   "scripts": {
     "test": "vitest run",

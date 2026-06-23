@@ -10,8 +10,9 @@ silently.
 
 Steps:
 
-1. Call `fetch_repo` with the URL (and a `ref` if the user named a branch/tag/commit), then run
-   the command it returns verbatim with your bash tool. That checks the code out at `./repo`.
+1. Load the `explore-repo` skill to clone the code into your sandbox at `./repo` (pass a `ref` if
+   the user named a branch, tag, or commit). Installing dependencies and running the tests below is
+   exactly the kind of work that skill's read-only preference allows you to do here.
 
 2. Detect the stack. List `./repo` and look for the signals that identify it:
    - Node/JS-TS: `package.json` (+ lockfile → `pnpm-lock.yaml`→pnpm, `yarn.lock`→yarn,

@@ -4,9 +4,11 @@ import { resolveSandboxKind } from "@repo/sandbox";
 import { channel as githubChannel } from "../channels/github.ts";
 import { channel as slackChannel } from "../channels/slack.ts";
 import { channelEnabled } from "../lib/channel-flags.ts";
+import { fetchRepoTool } from "@repo/github";
 import { createGitHubAgentIntegration } from "@repo/github/agent-integration";
 import { createSlackAgentIntegration } from "@repo/slack/agent-integration";
 import baseInstructions from "./d0lt-bot.md" with { type: "markdown" };
+import exploreRepo from "@repo/github/skills/explore-repo/SKILL.md" with { type: "skill" };
 import { createReviewer } from "../subagents/reviewer.ts";
 import { createTestRunner } from "../subagents/test-runner.ts";
 
@@ -20,7 +22,8 @@ const CHANNEL_REGISTRY = {
 } satisfies ChannelRegistry;
 
 export const description =
-  "GitHub assistant: routes PR reviews and test runs to specialist subagents.";
+  "GitHub assistant: answers repo questions directly and routes PR reviews and test runs to " +
+  "specialist subagents.";
 
 // Direct HTTP access is opt-in via CHANNEL_HTTP_ENABLE. The agent's public invocation
 // surface (POST/GET/HEAD /agents/d0lt-bot/:id) exists only when this module exports a
@@ -64,10 +67,11 @@ export default createAgent(async ({ id, env }) => {
     instructions,
     sandbox,
     cwd,
+    skills: [exploreRepo],
     subagents: [
       createReviewer(conversation.tools.subagent),
       createTestRunner(conversation.tools.subagent),
     ],
-    tools: conversation.tools.router,
+    tools: [...conversation.tools.router, fetchRepoTool],
   };
 });

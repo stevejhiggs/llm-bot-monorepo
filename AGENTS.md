@@ -125,10 +125,16 @@ route. **All three entry points are opt-in** via `CHANNEL_<NAME>_ENABLE` env var
   secret needed to boot) and its handler ignores every delivery, leaving the route mounted but
   inert. Enabling it requires the real secret (the factory throws on an empty one when enabled).
 
-The router attaches a lightweight sandbox facade and delegates to two **subagents** (`reviewer`,
-`test_runner` under `src/subagents/`) via Flue's built-in `task` capability. Subagents never clone
-directly: the shared `fetchRepoTool` (from `@repo/github`) validates a GitHub URL and returns an
-injection-safe shell command that the subagent runs with its bash tool inside the router's sandbox.
+The router attaches a lightweight sandbox facade. It works with repositories two ways: it loads the
+shared **`explore-repo` skill** (`@repo/github`'s `skills/explore-repo/SKILL.md`, imported as
+`@repo/github/skills/explore-repo/SKILL.md`) to answer ad-hoc repo questions itself (clone +
+read-only inspect), and it delegates the two heavy jobs — full PR reviews and test runs — to the
+**subagents** (`reviewer`, `test_runner` under `src/subagents/`) via Flue's built-in `task`
+capability. The router and both subagents register the same `explore-repo` skill, so the
+clone/inspect procedure lives in one place next to the `fetch_repo` tool it depends on. Nobody
+assembles git commands from a raw URL: the shared `fetchRepoTool` (from `@repo/github`) validates a
+GitHub URL and returns an injection-safe shell command that the skill runs with the bash tool inside
+the router's sandbox.
 The facade answers Flue's automatic workspace context discovery (`AGENTS.md`, skills, directory
 listing) without booting the real sandbox, then provisions the full sandbox on the first real
 workspace operation.
@@ -194,7 +200,9 @@ fragment through `CHANNEL_REGISTRY` (chat → base alone). So the model sees onl
 where the turn came from, and a channel's prose lives next to its tools. The `*.md` import type
 comes from `@flue/runtime`'s global ambient `declare module '*.md'`, so package-subpath imports
 type-check without extra `.d.ts` — but the markdown **loader** resolving a package `.md` is
-confirmed only by `pnpm build` / `build:cf`, so run both when touching this.
+confirmed only by `pnpm build` / `build:cf`, so run both when touching this. The same applies to
+`with { type: "skill" }` imports of `SKILL.md` files — run both builds when adding or moving a
+skill.
 
 To add a channel end to end, follow the recipe in
 [`docs/development.md#add-a-channel`](docs/development.md#add-a-channel). The short version: package

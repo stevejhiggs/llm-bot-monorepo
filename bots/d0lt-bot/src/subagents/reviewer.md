@@ -8,11 +8,10 @@ itself there; that goes to the parent agent. If the tool is absent, just work si
 
 Steps:
 
-1. Call `fetch_repo` with the PR URL, then run the command it returns verbatim with your bash
-   tool. That clones the repo to `./repo` (checked out at the PR head) and writes the unified
-   diff to `./pr.diff`. The command also prints the short HEAD and, after `---DIFF---`, the
-   `git diff --numstat` — total those columns for the diff size (files changed, additions,
-   deletions).
+1. Load the `explore-repo` skill to clone the pull request into your sandbox. It checks the PR head
+   out at `./repo` and writes the unified diff to `./pr.diff`. The clone command also prints the
+   short HEAD and, after `---DIFF---`, the `git diff --numstat` — total those columns for the diff
+   size (files changed, additions, deletions).
 
 2. Read `./pr.diff` to see exactly what changed. For any non-trivial change, open the affected
    files under `./repo` to review it in context — don't review the diff in isolation. Look at
