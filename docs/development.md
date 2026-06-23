@@ -121,7 +121,8 @@ those outside the React component.
 
 Use these roles to avoid repeating the same rule in five places:
 
-- Root `README.md`: repository overview, quickstart, command index, doc index.
+- Root `README.md`: repository overview, quickstart, command index, active doc index.
+- `docs/README.md`: distinguishes maintained docs from historical plans/specs.
 - `docs/architecture.md`: request flows and runtime wiring.
 - `docs/development.md`: change recipes and verification gates.
 - Bot/package `README.md`: user-facing usage and public API.

@@ -1,8 +1,27 @@
 # llm-bot-monorepo
 
-A monorepo for building LLM-powered bots on the [Flue](https://flueframework.com/) agent framework.
-It is structured to host multiple bots over time; **[d0lt-bot](bots/d0lt-bot/README.md)** — a GitHub
-PR-review and test-running assistant — is the first.
+A scaffold for building LLM-powered bots on the [Flue](https://flueframework.com/) agent framework.
+It is structured to host multiple deployable bots over time, with shared packages for the pieces
+most bots need: channel routing, sandboxed repository work, GitHub and Slack integrations, and
+runtime observability.
+
+**[d0lt-bot](bots/d0lt-bot/README.md)** is the first bot built on the scaffold: a GitHub PR-review
+and test-running assistant that can be driven from chat, GitHub comments, or Slack.
+
+## What this gives you
+
+- **A reusable bot scaffold** — add new Flue runners under [`bots/`](bots) while reusing the same
+  source-only packages through `workspace:*`.
+- **Shared channel architecture** — GitHub, Slack, and chat entry points all dispatch into the same
+  agent shape without coupling channel handlers back to the bot implementation.
+- **Dynamic sandboxing** — bots can run shell and filesystem work in a local sandbox for development
+  or a Cloudflare Sandbox container when deployed, selected at runtime.
+- **Lazy sandbox startup** — simple turns do not pay for sandbox provisioning; the real sandbox wakes
+  only when a workspace operation is needed.
+- **A concrete reference bot** — d0lt-bot shows the scaffold handling PR reviews, test runs, private
+  repo cloning, Slack thread progress, GitHub comments, web chat, and console-based observability.
+
+## Workspace shape
 
 - **Bots** (the Flue runners) live under [`bots/`](bots). Each is a deployable Flue app; see its own
   README for what it does and how to run it. → [`bots/d0lt-bot`](bots/d0lt-bot/README.md)
@@ -77,6 +96,9 @@ GitHub/Slack integration, Cloudflare deploy, and the full config table — see
   subagents, sandbox changes, and chat stream rendering changes.
 - [`AGENTS.md`](AGENTS.md) is the agent-facing contract reference: conventions, footguns, and
   verification gates for AI coding agents.
+- Historical design notes live under [`docs/plans`](docs/plans) and
+  [`docs/superpowers`](docs/superpowers). They preserve implementation history; prefer the active
+  docs above for current architecture and commands.
 
 ## Development
 
@@ -110,7 +132,8 @@ packages/
 └─ observability/          # @repo/observability    — createConsoleObserver
 turbo.json                 # task pipeline (build / dev / typecheck / test)
 tsconfig.base.json         # shared TS compiler options
-docs/superpowers/          # design specs & implementation plans
+docs/plans/                # historical design plans
+docs/superpowers/          # historical specs & implementation plans
 docs/architecture.md       # request-flow and runtime map
 docs/development.md        # common change recipes
 ```

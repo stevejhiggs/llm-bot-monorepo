@@ -19,7 +19,8 @@ This is a proof of concept — a test of how these patterns map onto Flue, not a
 ## How it works
 
 A root agent routes each request to one of two specialist **subagents**, each delegated to via
-Flue's built-in `task` capability:
+Flue's built-in `task` capability. The router owns a lightweight sandbox facade; the real node or
+Cloudflare sandbox is provisioned on the first workspace operation.
 
 ```
   chat (flue connect) ─┐
@@ -28,22 +29,15 @@ Flue's built-in `task` capability:
                 ┌───────────────┴────────────────┐
                 ▼                                 ▼
             reviewer                        test_runner
-   fetch_repo → bash: clone + diff   fetch_repo → bash: clone → install → test
-   → reads pr.diff + files           → detects stack, runs tests
-   → structured review               → pass/fail + output
+       clone + inspect diff             clone + install + test
+       structured review                pass/fail + output
 ```
 
-Both subagents share one `fetch_repo` tool (`fetchRepoTool` from
-[`@repo/github`](../../packages/github)). In Flue a tool's `execute` receives only its validated
-arguments — no sandbox — so `fetch_repo` does not clone; it validates the GitHub URL and returns the
-exact, injection-safe shell command. The subagent runs that command with its bash tool inside the
-router's sandbox, reads the diff / runs the tests, and returns its result for the router to narrate.
-
-Each instance gets its own scratch directory. Private repos are supported via a `GITHUB_TOKEN`: it
-is exposed to the sandbox as an env var and referenced as `$GITHUB_TOKEN` at clone time, so the
-secret authenticates the clone without ever entering the model's context or the host's git config.
-The sandbox itself (host-local in dev, a Cloudflare container when deployed) lives in
-[`@repo/sandbox`](../../packages/sandbox).
+Both subagents use `fetchRepoTool` from [`@repo/github`](../../packages/github) to get an
+injection-safe clone script, then run it in the router's sandbox. Private repos are supported by
+injecting `GITHUB_TOKEN` into the sandbox environment and referencing it as `$GITHUB_TOKEN` at clone
+time, so the token does not enter the model context. For the full runtime map, see
+[`docs/architecture.md`](../../docs/architecture.md).
 
 ## Usage
 
@@ -66,9 +60,9 @@ a repo's tests, and a newly opened PR is auto-reviewed.
 ### Setup
 
 Two secrets, with different jobs: `GITHUB_WEBHOOK_SECRET` verifies inbound deliveries, and
-`GITHUB_TOKEN` authenticates the outbound comments (and private-repo clones). Set them the same way
-as `ANTHROPIC_API_KEY` — `.dev.vars` locally, `wrangler secret put` when deployed. Enable the
-channel with `CHANNEL_GITHUB_ENABLE=true`.
+`GITHUB_TOKEN` authenticates outbound comments (and private-repo clones). For node dev, put them in
+`bots/d0lt-bot/.env`; for Cloudflare dev, put them in `.dev.vars`; when deployed, use
+`wrangler secret put`. Enable the channel with `CHANNEL_GITHUB_ENABLE=true`.
 
 Then create a webhook on the repo (or org) pointing at the deployed app:
 
@@ -90,7 +84,8 @@ is posted in-thread, and coarse progress milestones are posted while it works.
 
 Two secrets, with different jobs: `SLACK_SIGNING_SECRET` verifies inbound requests, and
 `SLACK_BOT_TOKEN` (the bot user OAuth token, `xoxb-…`) authenticates outbound replies and reads
-thread context. Set them the same way as `ANTHROPIC_API_KEY`. Enable the channel with
+thread context. For node dev, put them in `bots/d0lt-bot/.env`; for Cloudflare dev, put them in
+`.dev.vars`; when deployed, use `wrangler secret put`. Enable the channel with
 `CHANNEL_SLACK_ENABLE=true`.
 
 In your Slack app config:
@@ -135,19 +130,18 @@ never reorder or rewrite deployed entries.
 
 ## Configuration
 
-| Variable                | Required | Purpose                                                     |
-| ----------------------- | -------- | ----------------------------------------------------------- |
-| `ANTHROPIC_API_KEY`     | yes      | Calls Claude (Sonnet 4.6) directly.                         |
-| `GITHUB_TOKEN`          | no       | Repo read access for cloning **private** repos + comments.  |
-| `CHANNEL_GITHUB_ENABLE` | no       | Enable the GitHub webhook channel (needs the secret below). |
-| `GITHUB_WEBHOOK_SECRET` | no       | Verifies inbound GitHub deliveries.                         |
-| `GITHUB_TRIGGER_PHRASE` | no       | Activating phrase (default `@d0lt-bot`).                    |
-| `CHANNEL_SLACK_ENABLE`  | no       | Enable the Slack events channel (needs the secrets below).  |
-| `SLACK_SIGNING_SECRET`  | no       | Verifies inbound Slack requests.                            |
-| `SLACK_BOT_TOKEN`       | no       | Bot user OAuth token (`xoxb-…`) for outbound replies.       |
-| `CHANNEL_HTTP_ENABLE`   | no       | Expose the direct HTTP invocation route (e.g. for the web chat UI). |
+| Variable                | Required    | Purpose                                                                                 |
+| ----------------------- | ----------- | --------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`     | yes         | Calls Claude (Sonnet 4.6) directly.                                                     |
+| `GITHUB_TOKEN`          | conditional | Required for GitHub comments; optional for public repo clones; needed for private repos. |
+| `CHANNEL_GITHUB_ENABLE` | no          | Enable the GitHub webhook channel (needs the secret below).                             |
+| `GITHUB_WEBHOOK_SECRET` | no          | Verifies inbound GitHub deliveries.                                                     |
+| `GITHUB_TRIGGER_PHRASE` | no          | Activating phrase (default `@d0lt-bot`).                                                |
+| `CHANNEL_SLACK_ENABLE`  | no          | Enable the Slack events channel (needs the secrets below).                              |
+| `SLACK_SIGNING_SECRET`  | no          | Verifies inbound Slack requests.                                                        |
+| `SLACK_BOT_TOKEN`       | no          | Bot user OAuth token (`xoxb-…`) for outbound replies.                                   |
+| `CHANNEL_HTTP_ENABLE`   | no          | Expose the direct HTTP invocation route (e.g. for the web chat UI).                     |
 
-Public repos work without a token. Cloning runs in the sandbox, which on node executes on the host
-machine — appropriate for a local POC over trusted repos. For stronger isolation, swap the host
-sandbox for a remote sandbox integration (`flue add sandbox …`, e.g. Daytona or Vercel Sandbox). See
-the full variable list in [`.env.example`](.env.example).
+Public repo cloning works without a token. Node dev runs shell commands on the host-local sandbox;
+for stronger isolation, use the Cloudflare target described above. See the full variable list in
+[`.env.example`](.env.example).
