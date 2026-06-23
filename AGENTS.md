@@ -40,6 +40,9 @@ Run from the repo root unless noted.
 - `pnpm console` — open an interactive chat with the agent via `@flue/dev-console`
   (`flue-dev-console agent:d0lt-bot --server http://127.0.0.1:3583`). Requires `pnpm dev` running in
   another terminal; the console attaches to it (it does not start the server or load `.env`).
+- `pnpm run-flue` — invoke the agent once through its normal HTTP application, then exit
+  (`flue run d0lt-bot --target node`). Self-contained — it boots the app and loads `.env`, so it
+  does not need `pnpm dev` running. Pass `--input '<json>'`, `--id <id>`, etc. after `--`.
 - `pnpm typecheck` — `tsc --noEmit` across the workspace.
 - Cloudflare locally: `pnpm --filter d0lt-bot dev:cf` (sets `FLUE_SANDBOX=cloudflare`, reads
   `.dev.vars`). Requires Docker only at deploy time, when wrangler builds the sandbox image.

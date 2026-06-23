@@ -8,6 +8,7 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "console": "pnpm --filter d0lt-bot console",
+    "run-flue": "pnpm --filter d0lt-bot run-flue",
     "test": "turbo run test",
     "lint": "oxlint --fix && oxfmt",
     "lint:fix": "oxlint --fix",

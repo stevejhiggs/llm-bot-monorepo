@@ -12,6 +12,7 @@ Run commands from the repo root unless noted.
 pnpm install
 pnpm dev
 pnpm console
+pnpm run-flue
 pnpm typecheck
 pnpm test
 pnpm lint

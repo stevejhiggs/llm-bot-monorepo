@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "flue dev --target node",
+    "run-flue": "flue run d0lt-bot --target node",
     "build": "flue build --target node",
     "console": "flue-dev-console agent:d0lt-bot --server http://127.0.0.1:3583",
     "test": "vitest run",
