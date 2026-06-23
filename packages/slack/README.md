@@ -56,6 +56,31 @@ the bot. Slack expects a fast `2xx` and retries on timeout/non-2xx, so the chann
 and processes the work asynchronously; retries are not deduplicated (messages in the same thread
 serialize on one instance).
 
+## Slack app setup
+
+Configure these in the Slack app's settings (`api.slack.com/apps`) to point it at a bot that mounts
+this channel. The URLs are the routes this package serves, relative to wherever the bot mounts Flue
+— replace `https://<your-app>` with the bot's public origin:
+
+- **Event Subscriptions → Request URL:** `https://<your-app>/channels/slack/events`
+- **Subscribe to bot events:** `app_mention` and `message.im`
+- **Interactivity & Shortcuts → turn on Interactivity, Request URL:**
+  `https://<your-app>/channels/slack/interactions` — required for the buttons and menus the bot
+  posts via `reply_with_blocks`; without it, a click does nothing. Like the events endpoint it is
+  served by `createSlackBotChannel` and verifies `X-Slack-Signature` with the same
+  `SLACK_SIGNING_SECRET` (no extra secret), and only responds once the channel is enabled. Slack
+  sends a verification `POST` when you save the URL, so the bot must be running and the channel
+  enabled at that moment.
+- **OAuth scopes:** `app_mentions:read`, `chat:write`, and the `*:history` scopes for the
+  conversations the bot runs in — `channels:history`, `groups:history`, `im:history`,
+  `mpim:history` (a threaded mention reads earlier messages via `conversations.replies` for
+  context). Posting Block Kit messages and receiving button clicks needs no scope beyond
+  `chat:write`.
+
+The package reads no environment itself: the consuming bot supplies `SLACK_SIGNING_SECRET` (to
+verify inbound requests) and `SLACK_BOT_TOKEN` (`xoxb-…`, for outbound replies and reading thread
+context) and enables the channel — see the bot's own README for where those values go per target.
+
 ## Public API
 
 ```ts

@@ -84,33 +84,21 @@ Replies are posted as [Block Kit](https://docs.slack.dev/block-kit/) messages
 (`reply_with_blocks`): markdown, tables, cards, charts, and interactive buttons or menus. When the
 bot posts a button or menu and a user clicks it, Slack delivers the interaction to a **separate
 endpoint** (`/channels/slack/interactions`) and the click re-enters the same thread's agent as a new
-turn — so configuring that endpoint (below) is required for buttons/menus to work.
+turn — so configuring that endpoint (see the Slack app setup linked below) is required for
+buttons/menus to work.
 
 ### Setup
 
-Two secrets, with different jobs: `SLACK_SIGNING_SECRET` verifies inbound requests, and
+This bot supplies the channel's two secrets: `SLACK_SIGNING_SECRET` verifies inbound requests, and
 `SLACK_BOT_TOKEN` (the bot user OAuth token, `xoxb-…`) authenticates outbound replies and reads
 thread context. For node dev, put them in `bots/d0lt-bot/.env`; for Cloudflare dev, put them in
 `.dev.vars`; when deployed, use `wrangler secret put`. Enable the channel with
 `CHANNEL_SLACK_ENABLE=true`.
 
-In your Slack app config:
-
-- **Event Subscriptions → Request URL:** `https://<your-app>/channels/slack/events`
-- **Subscribe to bot events:** `app_mention` and `message.im`
-- **Interactivity & Shortcuts → turn on Interactivity, Request URL:**
-  `https://<your-app>/channels/slack/interactions` — required for the buttons and menus the bot
-  posts via `reply_with_blocks`. Without it, a click does nothing. Like the events endpoint, this
-  route is served by the Flue Slack channel and verifies the `X-Slack-Signature` with the same
-  `SLACK_SIGNING_SECRET`, so no extra secret is needed; it only appears once the channel is enabled
-  (`CHANNEL_SLACK_ENABLE=true`). Slack sends a test `POST` when you save the URL — the app must be
-  deployed/running and the channel enabled for it to verify.
-- **OAuth scopes:** `app_mentions:read`, `chat:write`, and the `*:history` scopes for the
-  conversations the bot runs in — `channels:history`, `groups:history`, `im:history`,
-  `mpim:history`. When mentioned inside a thread the bot reads the earlier messages
-  (`conversations.replies`) and passes them to the agent as context, which needs the matching
-  `*:history` scope. (Posting Block Kit messages and receiving button clicks needs no scope beyond
-  `chat:write`.)
+Configuring the Slack app itself — the Event Subscriptions and Interactivity Request URLs
+(`/channels/slack/events`, `/channels/slack/interactions`), the bot events, and the OAuth scopes —
+is documented in [`@repo/slack`](../../packages/slack/README.md#slack-app-setup), which owns those
+routes.
 
 ## Deploying to Cloudflare
 
