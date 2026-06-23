@@ -1,11 +1,12 @@
 import { useFlueAgent } from "@flue/react";
-import type { FormEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { getOrCreateConversationId } from "../lib/conversation.ts";
 import { type FilePart, viewFile } from "../lib/file-part.ts";
+import { shouldSubmitOnKey } from "../lib/input-key.ts";
 import { type ToolPart, viewTool } from "../lib/tool-part.ts";
 import { type DisplayMessage, mergeTranscript } from "../lib/transcript.ts";
 
@@ -40,8 +41,27 @@ export function Chat() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, thinking]);
 
-  function submit(event: FormEvent) {
-    event.preventDefault();
+  // Autofocus the composer once the conversation is ready, so the page is
+  // usable from the keyboard without a click.
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (ready) inputRef.current?.focus();
+  }, [ready]);
+
+  // Auto-grow the textarea to fit its content (capped by a max-height in CSS),
+  // and shrink it back down after a send clears the value. `scrollHeight`
+  // measures content + padding only; with `box-sizing: border-box` we must add
+  // the border back, otherwise the box is a couple px short and shows a stray
+  // scrollbar. Run before paint so the height never flashes.
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const border = el.offsetHeight - el.clientHeight;
+    el.style.height = `${el.scrollHeight + border}px`;
+  }, [input]);
+
+  function send() {
     const text = input.trim();
     if (!text || thinking || !ready) return;
     setInput("");
@@ -52,11 +72,29 @@ export function Chat() {
     void agent.sendMessage(text);
   }
 
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    send();
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (shouldSubmitOnKey(event.nativeEvent)) {
+      event.preventDefault();
+      send();
+    }
+  }
+
   return (
     <main className="mx-auto flex h-screen max-w-2xl flex-col font-sans">
       <header className="border-b px-4 py-3 text-sm font-semibold text-gray-700">d0lt-bot</header>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div
+        className="flex-1 space-y-4 overflow-y-auto px-4 py-4"
+        role="log"
+        aria-label="Conversation with d0lt-bot"
+        aria-live="polite"
+        aria-busy={thinking}
+      >
         {messages.length === 0 && (
           <p className="text-center text-sm text-gray-400">
             Ask d0lt-bot to review a PR or run a repo's tests.
@@ -67,18 +105,26 @@ export function Chat() {
         ))}
         {thinking && <p className="text-left text-sm text-gray-400">d0lt-bot is thinking…</p>}
         {agent.status === "error" && agent.error && (
-          <p className="text-left text-sm text-red-600">{agent.error.message}</p>
+          <p className="text-left text-sm text-red-600" role="alert">
+            {agent.error.message}
+          </p>
         )}
         <div ref={endRef} />
       </div>
 
-      <form onSubmit={submit} className="flex gap-2 border-t px-4 py-3">
-        <input
-          className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring"
+      <form onSubmit={submit} className="flex items-end gap-2 border-t px-4 py-3">
+        <textarea
+          ref={inputRef}
+          rows={1}
+          className="max-h-40 flex-1 resize-none rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring"
           value={input}
-          placeholder={ready ? "Message d0lt-bot…" : "Connecting…"}
+          placeholder={
+            ready ? "Message d0lt-bot…  (Enter to send, Shift+Enter for a new line)" : "Connecting…"
+          }
           disabled={!ready}
+          aria-label="Message d0lt-bot"
           onChange={(e) => setInput(e.target.value)}
+          onKeyDown={onKeyDown}
         />
         <button
           type="submit"

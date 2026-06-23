@@ -33,6 +33,15 @@ catalogs:
       specifier: 1.0.0-beta.1
       version: 1.0.0-beta.1
   testing:
+    '@testing-library/dom':
+      specifier: ^10.4.1
+      version: 10.4.1
+    '@testing-library/react':
+      specifier: ^16.3.2
+      version: 16.3.2
+    jsdom:
+      specifier: ^29.1.1
+      version: 29.1.1
     vitest:
       specifier: ^4.1.9
       version: 4.1.9
@@ -79,35 +88,26 @@ importers:
   apps/chat:
     dependencies:
       '@flue/react':
-        specifier: 1.0.0-beta.3
-        version: 1.0.0-beta.3(@flue/sdk@1.0.0-beta.3)(react@19.2.7)
+        specifier: 1.0.0-beta.4
+        version: 1.0.0-beta.4(@flue/sdk@1.0.0-beta.3)(react@19.2.7)
       '@flue/sdk':
         specifier: 1.0.0-beta.3
         version: 1.0.0-beta.3
       '@tailwindcss/vite':
         specifier: ^4.3.1
         version: 4.3.1(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
-      '@tanstack/react-devtools':
-        specifier: latest
-        version: 0.10.7(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(csstype@3.2.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(solid-js@1.9.13)
       '@tanstack/react-router':
-        specifier: latest
+        specifier: ^1.170.16
         version: 1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@tanstack/react-router-devtools':
-        specifier: latest
-        version: 1.167.0(@tanstack/react-router@1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@tanstack/router-core@1.171.13)(csstype@3.2.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tanstack/react-router-ssr-query':
-        specifier: latest
+        specifier: ^1.167.1
         version: 1.167.1(@tanstack/query-core@5.101.0)(@tanstack/react-query@5.101.0(react@19.2.7))(@tanstack/react-router@1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@tanstack/router-core@1.171.13)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tanstack/react-start':
-        specifier: latest
+        specifier: ^1.168.26
         version: 1.168.26(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
       '@tanstack/router-plugin':
         specifier: ^1.168.18
         version: 1.168.18(@tanstack/react-router@1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
-      lucide-react:
-        specifier: ^1.21.0
-        version: 1.21.0(react@19.2.7)
       react:
         specifier: ^19.2.7
         version: 19.2.7
@@ -128,16 +128,22 @@ importers:
         specifier: ^0.5.20
         version: 0.5.20(tailwindcss@4.3.1)
       '@tanstack/devtools-vite':
-        specifier: latest
+        specifier: ^0.8.0
         version: 0.8.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.1)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
+      '@tanstack/react-devtools':
+        specifier: ^0.10.7
+        version: 0.10.7(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(csstype@3.2.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(solid-js@1.9.13)
+      '@tanstack/react-router-devtools':
+        specifier: ^1.167.0
+        version: 1.167.0(@tanstack/react-router@1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@tanstack/router-core@1.171.13)(csstype@3.2.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tanstack/router-cli':
         specifier: ^1.167.17
         version: 1.167.17
       '@testing-library/dom':
-        specifier: ^10.4.1
+        specifier: catalog:testing
         version: 10.4.1
       '@testing-library/react':
-        specifier: ^16.3.2
+        specifier: catalog:testing
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@types/node':
         specifier: catalog:tooling
@@ -152,16 +158,16 @@ importers:
         specifier: ^6.0.2
         version: 6.0.2(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7)(@babel/runtime@7.29.7)(rolldown@1.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
       jsdom:
-        specifier: ^29.1.1
+        specifier: catalog:testing
         version: 29.1.1
       typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
+        specifier: catalog:tooling
+        version: 7.0.1-rc
       vite:
         specifier: ^8.0.16
         version: 8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)
       vitest:
-        specifier: ^4.1.9
+        specifier: catalog:testing
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@24.13.2)(jsdom@29.1.1)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
   bots/d0lt-bot:
@@ -941,8 +947,8 @@ packages:
     resolution: {integrity: sha512-LEB4OfD8bUPQx5JrCOZFilchZsyGETlPKu5SNhUUafqTsymhs4lnAohtdRibsWklOZTNpUkw3867VOzUE2JnMA==}
     engines: {node: '>=22.19.0'}
 
-  '@flue/react@1.0.0-beta.3':
-    resolution: {integrity: sha512-VrowZrf/BUIpSb0zFKfCe0+uyALIfusGLKgML4bgj3MZJPhBbcKTQzdO365BHjl5Jumfi2EfkZzwK/BgbsodOA==}
+  '@flue/react@1.0.0-beta.4':
+    resolution: {integrity: sha512-eFMuhFpGarlSfTc38BRMZlVwnUVu07nctk4XQQFVWlwOdJhvddOizYuEoax5QMBDFmDahKQICmp/AVtW3Wfpvw==}
     peerDependencies:
       '@flue/sdk': 1.0.0-beta.3
       react: '>=18'
@@ -3595,11 +3601,6 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-react@1.21.0:
-    resolution: {integrity: sha512-reEZMXq8Qdd5jg5XYkQ5TR1fB/GiQ7ih4vcrthYDtgjSDwh0i6/YLiGjsWsIwgN49gpAnd4J2elSNzncMEEUUQ==}
-    peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
     hasBin: true
@@ -4472,11 +4473,6 @@ packages:
 
   typebox@1.1.38:
     resolution: {integrity: sha512-pZ0aQPmMmXoUvSbeuWf/Hzsc+avNw/Zd6VeE8CFgkVGWyuHPJvqeJJDeJqLve+K70LvjYIoleGcoJHPT17cWoA==}
-
-  typescript@6.0.3:
-    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
-    engines: {node: '>=14.17'}
-    hasBin: true
 
   typescript@7.0.1-rc:
     resolution: {integrity: sha512-drEP77wK7CCDlPfXZH4e008UUQOsw1DFmHmZOZjuNA+yoDLLnSNMZRXi90NbV/1LVo7SbNLq1bs3jjvk49TEqQ==}
@@ -5541,7 +5537,7 @@ snapshots:
       '@octokit/webhooks-types': 7.6.1
       hono: 4.12.22
 
-  '@flue/react@1.0.0-beta.3(@flue/sdk@1.0.0-beta.3)(react@19.2.7)':
+  '@flue/react@1.0.0-beta.4(@flue/sdk@1.0.0-beta.3)(react@19.2.7)':
     dependencies:
       '@flue/sdk': 1.0.0-beta.3
       react: 19.2.7
@@ -7916,10 +7912,6 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@1.21.0(react@19.2.7):
-    dependencies:
-      react: 19.2.7
-
   lz-string@1.5.0: {}
 
   magic-string@0.30.21:
@@ -9119,8 +9111,6 @@ snapshots:
       mime-types: 3.0.2
 
   typebox@1.1.38: {}
-
-  typescript@6.0.3: {}
 
   typescript@7.0.1-rc:
     optionalDependencies:
