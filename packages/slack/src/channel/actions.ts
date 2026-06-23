@@ -23,7 +23,7 @@ export function replyWithBlocks(ref: ThreadRef, slack: WebClient = client) {
       "notification fallback. Buttons/menus you add come back to you later as a " +
       "`slack.block_action` turn, so put correlation info in each element's `value`. The target " +
       "thread is fixed; you supply only the message content.",
-    parameters: v.object({
+    input: v.object({
       blocks: v.pipe(
         v.array(v.unknown()),
         v.minLength(1),
@@ -33,12 +33,14 @@ export function replyWithBlocks(ref: ThreadRef, slack: WebClient = client) {
         v.pipe(v.string(), v.description("Notification/accessibility fallback text.")),
       ),
     }),
-    async execute({ blocks, text }) {
+    async run({
+      input: { blocks, text },
+    }): Promise<{ ok: false; error: string } | { channel: string | null; ts: string | null }> {
       let translated;
       try {
         translated = translateBlocks(blocks);
       } catch (error) {
-        return JSON.stringify({ ok: false, error: (error as Error).message });
+        return { ok: false, error: (error as Error).message };
       }
       const result = await slack.chat.postMessage({
         channel: ref.channelId,
@@ -46,7 +48,7 @@ export function replyWithBlocks(ref: ThreadRef, slack: WebClient = client) {
         text: text ?? translated.fallback,
         blocks: translated.blocks as unknown as KnownBlock[],
       });
-      return JSON.stringify({ channel: result.channel, ts: result.ts });
+      return { channel: result.channel ?? null, ts: result.ts ?? null };
     },
   });
 }

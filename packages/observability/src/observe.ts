@@ -11,7 +11,7 @@
 // test drives the observer with a fake sink — matching the injected-client
 // pattern used across the `@repo/*` packages.
 
-import type { FlueContext, FlueEvent, FlueEventSubscriber } from "@flue/runtime";
+import type { FlueEvent, FlueEventContext, FlueEventSubscriber } from "@flue/runtime";
 
 /** The console methods this observer uses; `console` satisfies it structurally. */
 export interface LogSink {
@@ -30,7 +30,7 @@ export interface MetricPoint {
 }
 
 export interface MetricSink {
-  write(point: MetricPoint, ctx: FlueContext): void;
+  write(point: MetricPoint, ctx: FlueEventContext): void;
 }
 
 export interface AnalyticsEngineDatasetLike {
@@ -168,9 +168,9 @@ export function createConsoleObserver(sink: LogSink = console): FlueEventSubscri
       case "turn":
         if (event.isError) {
           sink.error("[flue] model turn failed", {
-            model: event.model,
+            model: event.request.requestedModel,
             ms: event.durationMs,
-            error: errorMessage(event.error),
+            error: errorMessage(event.response.error?.message ?? event.response.error),
             ...ref(event),
           });
         }
@@ -273,14 +273,14 @@ export function createMetricsObserver(sink: MetricSink): FlueEventSubscriber {
             name: "flue.turn",
             count: 1,
             durationMs: event.durationMs,
-            ...usageFields(event.usage),
+            ...usageFields(event.response.usage),
             dimensions: {
               outcome: outcome(event.isError),
               ...dimensionFields({
-                model: event.model,
-                provider: event.provider,
-                api: event.api,
-                stopReason: event.stopReason,
+                model: event.request.requestedModel,
+                provider: event.request.providerId,
+                api: event.request.api,
+                stopReason: event.response.finishReason,
               }),
               ...metricRef(event),
             },

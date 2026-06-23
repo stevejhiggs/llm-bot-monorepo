@@ -9,7 +9,7 @@ repository and it does the work in a sandbox:
 - **Run a repository's tests** — clones the code, detects the stack, installs dependencies, runs the
   tests, and reports a pass/fail result with the relevant output.
 
-You can drive it three ways: interactively over chat (`flue connect`); from GitHub, where it reacts
+You can drive it three ways: interactively over chat (`pnpm console`, via `@flue/dev-console`); from GitHub, where it reacts
 to pull-request/issue comments and newly opened PRs and posts results back as comments (see
 [GitHub integration](#github-integration)); or from Slack, by @-mentioning or DMing it, with results
 posted back in-thread (see [Slack integration](#slack-integration)).
@@ -23,7 +23,7 @@ Flue's built-in `task` capability. The router owns a lightweight sandbox facade;
 Cloudflare sandbox is provisioned on the first workspace operation.
 
 ```
-  chat (flue connect) ─┐
+  chat (dev-console) ──┐
   GitHub webhooks ─────┼──▶ d0lt-bot (router agent, owns the sandbox)
   Slack events ────────┘        │ lightweight sandbox; full sandbox on first workspace op
                 ┌───────────────┴────────────────┐
@@ -41,7 +41,7 @@ time, so the token does not enter the model context. For the full runtime map, s
 
 ## Usage
 
-Start the server (`pnpm dev` from the repo root), then chat with the agent via `pnpm connect`:
+Start the server (`pnpm dev` from the repo root), then chat with the agent via `pnpm console`:
 
 - `Review https://github.com/owner/repo/pull/123`
 - `Run the tests for https://github.com/owner/repo`

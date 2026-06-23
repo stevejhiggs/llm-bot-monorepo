@@ -46,14 +46,14 @@ export function commentOnIssue(ref: GitHubIssueRef, octokit?: Octokit) {
       "Comment on the GitHub issue or pull request bound to this conversation. Use this to post " +
       "your final result (the review or the test outcome) back to GitHub. Supply only the comment " +
       "body; the target issue/PR is fixed.",
-    parameters: v.object({
+    input: v.object({
       body: v.pipe(
         v.string(),
         v.minLength(1),
         v.description("The Markdown comment body to post. Must be non-empty."),
       ),
     }),
-    async execute({ body }) {
+    async run({ input: { body } }) {
       const github = octokit ?? getClient();
       const result = await github.rest.issues.createComment({
         owner: ref.owner,
@@ -61,7 +61,7 @@ export function commentOnIssue(ref: GitHubIssueRef, octokit?: Octokit) {
         issue_number: ref.issueNumber,
         body,
       });
-      return JSON.stringify({ commentId: result.data.id, url: result.data.html_url });
+      return { commentId: result.data.id, url: result.data.html_url };
     },
   });
 }

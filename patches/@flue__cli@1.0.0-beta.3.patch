@@ -1,0 +1,12 @@
+diff --git a/dist/flue.js b/dist/flue.js
+index 43561c17b4dc757b264fdf40dd6ab21e416aa1b3..c1ac911a8159f433302f149e083fe1589878fcad 100644
+--- a/dist/flue.js
++++ b/dist/flue.js
+@@ -1812,6 +1812,7 @@ function viteGeneratedEntryDependencyResolver(root, options = {}) {
+ 		async resolveId(source, importer) {
+ 			if (options.importers && (!importer || !options.importers.includes(importer)) && source !== "@flue/runtime" && !source.startsWith("@flue/runtime/") && source !== "@hono/node-server" && source !== "debug") return null;
+ 			if (source.startsWith(".") || source.startsWith("/") || source.startsWith("\0") || source.startsWith("virtual:") || source.startsWith("node:")) return null;
++			if (/\.md(?:\?|$)/i.test(source)) return null;
+ 			if (source === "@hono/node-server" && options.external) for (const nodePath of collectNodePaths(root)) {
+ 				const packageDir = path$1.join(nodePath, "@hono", "node-server");
+ 				if (fs.existsSync(packageDir)) return {

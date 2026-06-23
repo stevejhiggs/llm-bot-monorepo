@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import type { FlueContext, FlueEvent } from "@flue/runtime";
+import type { FlueEvent, FlueEventContext } from "@flue/runtime";
 import {
   createAnalyticsEngineMetricsSink,
   createCompositeObserver,
@@ -33,8 +33,8 @@ function run(sink: ReturnType<typeof fakeSink>, ...events: FlueEvent[]) {
   for (const event of events) void observer(event, {} as never);
 }
 
-function ctx(env: Record<string, unknown> = {}): FlueContext {
-  return { env } as FlueContext;
+function ctx(env: Record<string, unknown> = {}): FlueEventContext {
+  return { env } as FlueEventContext;
 }
 
 describe("createConsoleObserver", () => {

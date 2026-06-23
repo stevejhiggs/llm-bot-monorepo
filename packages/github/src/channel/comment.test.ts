@@ -46,7 +46,10 @@ test("commentOnIssue posts to the bound issue and returns the comment id and url
   const octokit = new Octokit({ auth: "test-token", request: { fetch: fakeFetch } });
 
   const tool = commentOnIssue({ owner: "owner", repo: "repo", issueNumber: 7 }, octokit);
-  const result = JSON.parse(await tool.execute({ body: "Looks good." }));
+  const result = (await tool.run({ input: { body: "Looks good." } })) as {
+    commentId: number;
+    url: string;
+  };
 
   expect(result.commentId).toBe(999);
   expect(result.url).toBe("https://github.com/owner/repo/issues/7#issuecomment-999");

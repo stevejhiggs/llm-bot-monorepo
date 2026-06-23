@@ -23,7 +23,7 @@ The shared packages are source-only TypeScript packages. Consumers import their
 ## Chat Request Flow
 
 ```
-flue connect or apps/chat
+dev-console or apps/chat
   -> d0lt-bot agent instance
   -> source resolves to chat
   -> base prompt only

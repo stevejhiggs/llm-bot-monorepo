@@ -37,7 +37,9 @@ contracts and footguns that coding agents must preserve while editing.
 Run from the repo root unless noted.
 
 - `pnpm dev` — start the dev server (node target, port 3583, watch mode).
-- `pnpm connect` — open an interactive chat with the agent (`flue connect d0lt-bot local`).
+- `pnpm console` — open an interactive chat with the agent via `@flue/dev-console`
+  (`flue-dev-console agent:d0lt-bot --server http://127.0.0.1:3583`). Requires `pnpm dev` running in
+  another terminal; the console attaches to it (it does not start the server or load `.env`).
 - `pnpm typecheck` — `tsc --noEmit` across the workspace.
 - Cloudflare locally: `pnpm --filter d0lt-bot dev:cf` (sets `FLUE_SANDBOX=cloudflare`, reads
   `.dev.vars`). Requires Docker only at deploy time, when wrangler builds the sandbox image.
@@ -102,14 +104,16 @@ rather than repeating them. When you change a package, read its `AGENTS.md` firs
 They form a shallow DAG: `@repo/channel-registry` is a shared leaf, GitHub/Slack depend on it for
 agent-integration types, and `bots/d0lt-bot → {channel-registry, sandbox, github, slack,
 observability}`. Versions are shared through pnpm catalogs in `pnpm-workspace.yaml` (`flue` / `cf` /
-`external`) — keep `@flue/runtime` resolving to the patched `1.0.0-beta.2`.
+`external`). `@flue/runtime` is `1.0.0-beta.3`; `@flue/github` / `@flue/slack` stay at `1.0.0-beta.1`
+(no beta.2/beta.3 published for those two).
 
 ### One agent, three entry points
 
 A single **router agent** (`bots/d0lt-bot/src/agents/d0lt-bot.ts`) is reached three ways, all
 landing on the same agent instance/conversation:
 
-1. **Chat** — `flue connect` (instance id `local`); private child-process IPC, no HTTP.
+1. **Chat** — `pnpm console` (interactive `@flue/dev-console`, attaches to `pnpm dev`) or the
+   `apps/chat` web UI.
 2. **GitHub channel** — webhooks → `dispatch()`.
 3. **Slack channel** — Events API → `dispatch()`.
 

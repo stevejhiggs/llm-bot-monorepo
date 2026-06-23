@@ -42,14 +42,14 @@ export function postProgressInThread(ref: ThreadRef, slack: WebClient = client) 
       "Post a short progress update in the Slack thread while you work (e.g. 'Cloning the repo…', " +
       "'Running tests…'). Use it before each major phase so the user isn't left waiting in silence. " +
       "Keep it to a few words; do NOT post the final result here — use reply_with_blocks for that.",
-    parameters: threadTextParam("A brief progress note, a few words. Must be non-empty."),
-    async execute({ text }) {
+    input: threadTextParam("A brief progress note, a few words. Must be non-empty."),
+    async run({ input: { text } }): Promise<{ ok: true; ts: string | null } | { ok: false }> {
       try {
         const result = await postToThread(slack, ref, text);
-        return JSON.stringify({ ok: true, ts: result.ts });
+        return { ok: true, ts: result.ts ?? null };
       } catch (error) {
         console.warn("[slack] progress post failed:", error);
-        return JSON.stringify({ ok: false });
+        return { ok: false };
       }
     },
   });

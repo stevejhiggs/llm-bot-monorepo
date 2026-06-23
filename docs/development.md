@@ -11,7 +11,7 @@ Run commands from the repo root unless noted.
 ```bash
 pnpm install
 pnpm dev
-pnpm connect
+pnpm console
 pnpm typecheck
 pnpm test
 pnpm lint

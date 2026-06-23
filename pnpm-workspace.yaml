@@ -1,3 +1,5 @@
+minimumReleaseAge: 0
+
 packages:
   - "apps/*"
   - "bots/*"
@@ -28,7 +30,9 @@ catalogs:
     vitest: ^4.1.9
 
   flue:
-    "@flue/runtime": 1.0.0-beta.2
+    "@flue/runtime": 1.0.0-beta.3
+    # @flue/github and @flue/slack have no beta.2/beta.3 release yet — beta.1 is
+    # their latest published version (the core @flue/* packages are at beta.3).
     "@flue/github": 1.0.0-beta.1
     "@flue/slack": 1.0.0-beta.1
 
@@ -42,4 +46,4 @@ catalogs:
     "@slack/web-api": 8.0.0-rc.1
 
 patchedDependencies:
-  "@flue/runtime@1.0.0-beta.2": patches/@flue__runtime@1.0.0-beta.2.patch
+  "@flue/cli@1.0.0-beta.3": patches/@flue__cli@1.0.0-beta.3.patch

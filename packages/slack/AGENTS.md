@@ -182,8 +182,8 @@ turns, teaching the model which block to use for what.
 
 ## Dependencies
 
-`@flue/runtime` + `@flue/slack` (catalog `flue`; `@flue/runtime` must resolve to the patched
-`1.0.0-beta.2`), `@repo/channel-registry` for the shared agent-integration type shape,
+`@flue/runtime` (catalog `flue`, `1.0.0-beta.3`) + `@flue/slack` (catalog `flue`, `1.0.0-beta.1` —
+no beta.2/beta.3 published), `@repo/channel-registry` for the shared agent-integration type shape,
 `@slack/web-api` + `valibot` (catalog `external`). No dependency on `@repo/sandbox` or
 `@repo/github`.
 

@@ -68,10 +68,11 @@ The d0lt-bot runner listens on `http://127.0.0.1:3583`.
 
 ### 4. Talk to the bot
 
-Use the Flue CLI in another terminal:
+Attach the interactive console (`@flue/dev-console`) in another terminal — it connects to the runner
+started above:
 
 ```bash
-pnpm connect
+pnpm console
 ```
 
 Or use the web chat interface:
@@ -84,7 +85,8 @@ pnpm --filter chat dev
 Then open `http://localhost:3000`. The chat app proxies browser requests to the runner via
 `FLUE_RUNNER_URL` in `apps/chat/.env` and requires the runner's `CHANNEL_HTTP_ENABLE` flag to be on.
 
-Flue loads `bots/d0lt-bot/.env` for `flue dev` and `flue connect`. For everything d0lt-bot — usage,
+Flue loads `bots/d0lt-bot/.env` for `flue dev` (`pnpm console` attaches to that running server and
+does not load `.env` itself). For everything d0lt-bot — usage,
 GitHub/Slack integration, Cloudflare deploy, and the full config table — see
 [`bots/d0lt-bot/README.md`](bots/d0lt-bot/README.md).
 

@@ -2,7 +2,7 @@ import { defineTool } from "@flue/runtime";
 import * as v from "valibot";
 import { buildCloneScript, parseGitHubTarget } from "./target.ts";
 
-// Shared by both subagents. A Flue tool's execute receives only validated args —
+// Shared by both subagents. A Flue tool's run receives only validated input —
 // no sandbox — so this tool does not clone; it validates the GitHub URL and returns
 // the exact, injection-safe shell command for the agent to run with its bash tool.
 // This keeps URL parsing and shell-safety in one tested place instead of letting the
@@ -14,7 +14,7 @@ export default defineTool({
     "clone it into ./repo (and, for a PR, write the unified diff to ./pr.diff). Call this first " +
     "with the URL, then run the returned command verbatim with your bash tool. Returns the " +
     "parsed target and the command.",
-  parameters: v.object({
+  input: v.object({
     url: v.pipe(
       v.string(),
       v.description("GitHub repo URL (https://github.com/owner/repo[/tree/<ref>]) or a PR URL."),
@@ -26,7 +26,7 @@ export default defineTool({
       ),
     ),
   }),
-  async execute({ url, ref }) {
+  async run({ input: { url, ref } }) {
     const target = parseGitHubTarget(url, ref);
     const command = buildCloneScript(target);
     const header =

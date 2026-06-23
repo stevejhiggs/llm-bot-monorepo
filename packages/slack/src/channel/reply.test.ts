@@ -14,7 +14,7 @@ test("post_slack_progress posts a converted note to the bound thread", async () 
   } as unknown as WebClient;
 
   const tool = postProgressInThread({ channelId: "D1", threadTs: "222.2" }, fakeClient);
-  const result = JSON.parse(await tool.execute({ text: "**Running** tests…" }));
+  const result = await tool.run({ input: { text: "**Running** tests…" } });
 
   expect(result).toEqual({ ok: true, ts: "444.4" });
   expect(calls[0]).toEqual({ channel: "D1", thread_ts: "222.2", text: "*Running* tests…" });
@@ -30,7 +30,7 @@ test("post_slack_progress swallows a Slack error so the run is not aborted", asy
   } as unknown as WebClient;
 
   const tool = postProgressInThread({ channelId: "D1", threadTs: "222.2" }, fakeClient);
-  const result = JSON.parse(await tool.execute({ text: "Cloning…" }));
+  const result = await tool.run({ input: { text: "Cloning…" } });
 
   expect(result).toEqual({ ok: false });
 });

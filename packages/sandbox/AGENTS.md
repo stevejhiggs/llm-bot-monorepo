@@ -98,7 +98,7 @@ the path. (Cloudflare's `cwd` is the container's fixed `/workspace`, so `appName
 
 ## Dependencies
 
-`@flue/runtime` (catalog `flue`, pinned + patched at `1.0.0-beta.2` — must resolve to exactly that),
+`@flue/runtime` (catalog `flue`, `1.0.0-beta.3`),
 `@cloudflare/sandbox` (catalog `cf`, only used by `./cloudflare`). No dependency on `@repo/github` or
 `@repo/slack`.
 

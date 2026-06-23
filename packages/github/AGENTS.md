@@ -111,7 +111,7 @@ validation before it reaches the script string.
 
 ### 2. `fetch_repo` validates and returns — it does not clone
 
-A Flue tool's `execute` receives only validated args (no sandbox), so `fetchRepoTool` parses the URL
+A Flue tool's `run` receives only validated `input` (no sandbox), so `fetchRepoTool` parses the URL
 and returns the exact command for the subagent to run with its **bash tool** in the router's
 sandbox. Keep cloning out of the tool; keep URL parsing + shell-safety here (one tested place).
 
@@ -136,8 +136,8 @@ agent binds `commentOnIssue` per conversation; the subagents import `fetchRepoTo
 
 ## Dependencies
 
-`@flue/runtime` + `@flue/github` (catalog `flue`; `@flue/runtime` must resolve to the patched
-`1.0.0-beta.2`), `@repo/channel-registry` for the shared agent-integration type shape,
+`@flue/runtime` (catalog `flue`, `1.0.0-beta.3`) + `@flue/github` (catalog `flue`, `1.0.0-beta.1` —
+no beta.2/beta.3 published), `@repo/channel-registry` for the shared agent-integration type shape,
 `@octokit/rest`, `@octokit/plugin-throttling`, and `valibot` (catalog `external`). No dependency on
 `@repo/sandbox` or `@repo/slack`.
 

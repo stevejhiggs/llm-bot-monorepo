@@ -1,4 +1,4 @@
-import { createAgent, type AgentRouteHandler } from "@flue/runtime";
+import { defineAgent, type AgentRouteHandler } from "@flue/runtime";
 import { resolveRegisteredConversation, type ChannelRegistry } from "@repo/channel-registry";
 import { resolveSandboxKind } from "@repo/sandbox";
 import { channel as githubChannel } from "../channels/github.ts";
@@ -32,7 +32,7 @@ export const description =
 // `route` function, so we export one only when the flag is set. Unset (the default) →
 // no public HTTP surface at all (the endpoint 404s and is absent from openapi.json),
 // and the bot is reachable only through enabled channel ingress (GitHub/Slack), which
-// dispatch internally, plus `flue connect` (private child-process IPC) for local dev.
+// dispatch internally, plus `pnpm console` (`@flue/dev-console`) for local dev.
 // The handler is a pass-through; gate it further (e.g. a bearer check) if HTTP callers
 // need authz.
 export const route: AgentRouteHandler | undefined = channelEnabled("http")
@@ -44,7 +44,7 @@ export const route: AgentRouteHandler | undefined = channelEnabled("http")
 // sandbox, then provisions the full node/cloudflare implementation on first real
 // workspace operation. Dynamic import() keeps each target's sandbox module out of
 // the other target's bundle.
-export default createAgent(async ({ id, env }) => {
+export default defineAgent(async ({ id, env }) => {
   // Classify the turn's source once, then derive both the prompt fragment and the
   // outbound tool set from the same registry entry.
   const conversation = resolveRegisteredConversation(id, CHANNEL_REGISTRY);
