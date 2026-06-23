@@ -92,7 +92,9 @@ rather than repeating them. When you change a package, read its `AGENTS.md` firs
   decision logic (`planDelivery`), the outbound `commentOnIssue` tool, and the `fetchRepoTool` the
   subagents clone with.
 - **[`@repo/slack`](packages/slack/AGENTS.md)** — Slack Events API decision logic (`planSlackEvent`),
-  the outbound `replyInThread` / `postProgressInThread` tools, and the GFM→mrkdwn `toMrkdwn`.
+  the outbound `reply_with_blocks` / `postProgressInThread` tools, Block Kit formatting helpers
+  (`block-schema.ts`, `blocks.ts`), inbound interaction handling (`interactions/plan.ts`,
+  `channel/interactions-ack.ts`), the `slack-block-kit` skill, and the GFM→mrkdwn `toMrkdwn`.
 - **[`@repo/observability`](packages/observability/AGENTS.md)** — `createConsoleObserver`, the
   console sink that projects Flue's `observe(...)` event stream into structured logs (failures, slow
   ops, an activity trail). The bot's `app.ts` registers it at startup.
@@ -165,12 +167,12 @@ Each integration is split into two files for a specific reason — keep the spli
   construction/dispatch logic — in `channels/`.
 - **Testable logic + channel construction** live in the channel's package — `@repo/github`
   (webhooks) / `@repo/slack` (events): the outbound API client, a pure `plan*()` function (verified
-  delivery → `{ ref, input } | null`), the outbound tool factory (`commentOnIssue` / `replyInThread`),
-  the **channel factory** that builds the Flue channel and wires `plan*()` → `dispatch`, and the
-  **agent-integration factory** that returns that channel's registry entry (prompt fragment, parser,
-  router tools, subagent tools). The channel factory dispatches to the agent **by name**
-  (`dispatch({ agent: agentName, ... })`), so the shim never imports the agent. See
-  [`packages/github/AGENTS.md`](packages/github/AGENTS.md) /
+  delivery → `{ ref, input } | null`), the outbound tool factory (`commentOnIssue` /
+  `reply_with_blocks`), the **channel factory** that builds the Flue channel and wires `plan*()` →
+  `dispatch`, and the **agent-integration factory** that returns that channel's registry entry
+  (prompt fragment, parser, router tools, subagent tools). The channel factory dispatches to the
+  agent **by name** (`dispatch({ agent: agentName, ... })`), so the shim never imports the agent.
+  See [`packages/github/AGENTS.md`](packages/github/AGENTS.md) /
   [`packages/slack/AGENTS.md`](packages/slack/AGENTS.md) for each package's contracts.
 
 The agent classifies each turn's source once through `CHANNEL_REGISTRY` in
@@ -186,8 +188,10 @@ fixed at bind time from the verified delivery, so the model cannot redirect a po
 uses it for `post_slack_progress`: the subagents post phase milestones (cloning/installing, running
 tests) while the router is blocked on its `task`. The subagent profiles are therefore **factories**
 (`createReviewer`/`createTestRunner`) built in the agent initializer with those injected tools —
-not static profiles. The router posts the opening ack and the final reply; the final reply runs the
-model's markdown through `toMrkdwn` (from `@repo/slack`) because Slack renders mrkdwn, not GFM.
+not static profiles. The router posts the opening ack and the final reply via `reply_with_blocks`;
+the reply is a Block Kit message (plain prose goes in a `markdown` block, which renders GFM
+directly — no `toMrkdwn` pass). `toMrkdwn` still applies inside `post_slack_progress` notes and
+for `mrkdwn`-typed text objects within blocks.
 
 ### Source-dependent prompt
 
@@ -202,7 +206,9 @@ comes from `@flue/runtime`'s global ambient `declare module '*.md'`, so package-
 type-check without extra `.d.ts` — but the markdown **loader** resolving a package `.md` is
 confirmed only by `pnpm build` / `build:cf`, so run both when touching this. The same applies to
 `with { type: "skill" }` imports of `SKILL.md` files — run both builds when adding or moving a
-skill.
+skill. The `slack-block-kit` skill (`@repo/slack/skills/slack-block-kit/SKILL.md`) is registered
+on the d0lt-bot agent only for Slack-channel turns (`conversation.source === "slack"`), teaching
+the model which Block Kit block to use for what.
 
 To add a channel end to end, follow the recipe in
 [`docs/development.md#add-a-channel`](docs/development.md#add-a-channel). The short version: package

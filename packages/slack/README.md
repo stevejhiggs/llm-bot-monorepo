@@ -12,16 +12,31 @@ It is **source-only**: no build step. Consumers import the `.ts` directly via th
 
 - **Event planning** — `planSlackEvent()` decides what (if anything) a verified Events API delivery
   should dispatch to the agent (an `@`-mention, or a DM), returning `{ ref, input } | null`. Pure.
-- **`replyInThread` / `postProgressInThread`** — the agent's outbound tools, bound at construction
-  to the thread from the verified event, so the model supplies only the text, never the
-  destination. The reply tool surfaces failures; the progress tool swallows them (a transient Slack
-  hiccup mid-run must not abort the work).
-- **`toMrkdwn`** — converts the model's GitHub-flavored markdown to Slack mrkdwn (bold, links,
-  headings, bullets; tables degrade to bullet lines). Slack does not render GFM.
+- **Interaction planning** — `planSlackInteraction()` is the pure inbound twin for block actions:
+  when a user clicks a button or selects a menu the bot posted, Slack delivers it to
+  `/channels/slack/interactions` and the function re-enters the same thread's agent as a
+  `slack.block_action` turn.
+- **`reply_with_blocks` / `postProgressInThread`** — the agent's outbound tools, bound at
+  construction to the thread from the verified event, so the model supplies only the blocks/text,
+  never the destination. `reply_with_blocks` posts a [Block Kit](https://docs.slack.dev/block-kit/)
+  message; plain prose goes in a `markdown` block, which renders GFM directly (no mrkdwn
+  conversion for the final reply). The reply tool throws on Slack post failures (loud) and returns
+  an error object on invalid blocks so the model can retry; the progress tool swallows failures (a
+  transient Slack hiccup mid-run must not abort the work).
+- **Block Kit helpers** — `BlocksSchema` (valibot subset of Block Kit) and `translateBlocks()`
+  (validates, converts `mrkdwn`-typed text objects, assigns `action_id`s, derives the fallback).
+- **`toMrkdwn`** — converts GitHub-flavored markdown to Slack mrkdwn (bold, links, headings,
+  bullets; tables degrade to bullet lines). Used for `post_slack_progress` notes and for
+  `mrkdwn`-typed text objects inside blocks; `markdown` blocks pass GFM verbatim.
 - **`workerdSafeFetch`** — a `fetch` wrapper that makes `@slack/web-api` work on Cloudflare Workers.
-- **`createSlackBotChannel`** — constructs the Flue channel, so the bot's discovered
-  `channels/slack.ts` is a thin shim that just passes `{ enabled, signingSecret?, agentName }`. It
-  dispatches to the agent by name, so the shim never imports the agent (no channel ⇄ agent cycle).
+- **`createSlackBotChannel`** — constructs the Flue channel (wiring both an `events` and an
+  `interactions` handler under the same `SLACK_SIGNING_SECRET` verification), so the bot's
+  discovered `channels/slack.ts` is a thin shim that just passes `{ enabled, signingSecret?,
+  agentName }`. It dispatches to the agent by name, so the shim never imports the agent (no
+  channel ⇄ agent cycle).
+- **`slack-block-kit` skill** — `skills/slack-block-kit/SKILL.md`, exported as
+  `"./skills/slack-block-kit/SKILL.md"`, registered on the d0lt-bot agent only for Slack-channel
+  turns. Teaches the model which block to use for what.
 
 ## Event handling
 
@@ -45,10 +60,11 @@ serialize on one instance).
 
 ```ts
 import {
-  planSlackEvent, replyInThread, postProgressInThread, workerdSafeFetch, client,
+  planSlackEvent, planSlackInteraction,
+  postProgressInThread, workerdSafeFetch, client,
   type SlackDispatchPlan, type SlackDispatchInput,
   createSlackBotChannel, type SlackBotChannelOptions,
-  toMrkdwn,
+  toMrkdwn, BlocksSchema, translateBlocks,
 } from "@repo/slack";
 
 import { createSlackAgentIntegration } from "@repo/slack/agent-integration";

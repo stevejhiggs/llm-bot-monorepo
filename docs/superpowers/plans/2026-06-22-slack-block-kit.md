@@ -1391,6 +1391,116 @@ git commit -m "feat(slack): add slack-block-kit skill and register it on d0lt-bo
 
 ---
 
+## Task 10: Collapse to a single reply tool (`reply_with_blocks`)
+
+Make `reply_with_blocks` the only reply tool bound to the agent. Plain prose becomes a single `markdown` block (which renders GFM faithfully, unlike the lossy `toMrkdwn` path). `replyInThread` stays exported and tested (rollback) but is unbound from the router. This removes the "when to use blocks" decision entirely.
+
+**Files:**
+- Modify: `packages/slack/src/channel/agent-integration.ts`
+- Modify: `packages/slack/src/channel/agent-integration.test.ts`
+- Modify: `packages/slack/src/channel/instructions.md`
+- Modify: `packages/slack/src/skills/slack-block-kit/SKILL.md`
+
+**Interfaces:**
+- Consumes: `replyWithBlocks` from `./actions.ts`, `postProgressInThread` from `./reply.ts` (both already exist). `replyInThread` remains exported from `./reply.ts` and `index.ts` but is no longer imported by `agent-integration.ts`.
+- Produces: the router toolset is `[reply_with_blocks, post_slack_progress]` (no `reply_in_slack_thread`).
+
+- [ ] **Step 1: Update the failing test first**
+
+Replace the two router assertions in `packages/slack/src/channel/agent-integration.test.ts`. In the first test, change the `router` `toEqual` to:
+
+```ts
+  expect(tools.router.map((tool) => tool.name)).toEqual([
+    "reply_with_blocks",
+    "post_slack_progress",
+  ]);
+```
+
+In the second test (`"router toolset includes reply_with_blocks bound to the thread"`), replace the two `toContain` assertions with:
+
+```ts
+  expect(names).toContain("reply_with_blocks");
+  expect(names).not.toContain("reply_in_slack_thread");
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `cd packages/slack && pnpm exec vitest run src/channel/agent-integration.test.ts`
+Expected: FAIL — router still contains `reply_in_slack_thread`.
+
+- [ ] **Step 3: Unbind `replyInThread` in `agent-integration.ts`**
+
+Change the import (drop `replyInThread`):
+
+```ts
+import { postProgressInThread } from "./reply.ts";
+import { replyWithBlocks } from "./actions.ts";
+```
+
+And the `tools` return:
+
+```ts
+    tools: (ref) => {
+      const progress = postProgressInThread(ref);
+      return { router: [replyWithBlocks(ref), progress], subagent: [progress] };
+    },
+```
+
+Leave `reply.ts` and `index.ts` unchanged — `replyInThread` stays exported (rollback) and its `reply.test.ts` tests stay green.
+
+- [ ] **Step 4: Run the test to verify it passes**
+
+Run: `cd packages/slack && pnpm exec vitest run src/channel/agent-integration.test.ts`
+Expected: PASS.
+
+- [ ] **Step 5: Update `instructions.md`**
+
+In `packages/slack/src/channel/instructions.md`, replace the final bullet of the "When the turn comes from Slack" section (the one beginning "After the subagent returns") with:
+
+```markdown
+- After the subagent returns, **post the result back by calling the `reply_with_blocks`
+  tool** — the same content you would narrate in chat. For a plain text answer, send a
+  single `markdown` block: `[{ "type": "markdown", "text": "…your Markdown…" }]` (Slack
+  renders the Markdown, including tables). Posting the reply is how the user sees your
+  answer; do not stop at narrating it.
+```
+
+And replace the first bullet of the "Posting rich Slack messages and handling clicks" section (the one beginning "To post a rich message") with:
+
+```markdown
+- `reply_with_blocks` is your single reply tool. For a plain answer, send one `markdown`
+  block; to make a message richer (a table, a card, status, buttons, or menus), add the
+  appropriate blocks. Consult the **slack-block-kit** skill for which block to use and the
+  limits. If a reply would exceed the `markdown` block's 12,000-character limit, split it
+  across multiple `reply_with_blocks` calls.
+```
+
+- [ ] **Step 6: Update the skill `SKILL.md`**
+
+In `packages/slack/src/skills/slack-block-kit/SKILL.md`, change the frontmatter `description` to remove the `reply_in_slack_thread` reference:
+
+```markdown
+description: Use when composing any Slack reply with the `reply_with_blocks` tool — it is the single reply tool, so even plain prose is sent as one `markdown` block. Covers choosing which block to use (markdown, table, card, data_visualization, section/fields, context, header, buttons, menus) for what purpose, and staying within Slack's limits.
+```
+
+In the body's **Limits** section, append this sentence:
+
+```markdown
+If a reply would exceed 12,000 characters, split it across multiple `reply_with_blocks` messages rather than truncating.
+```
+
+- [ ] **Step 7: Run the package suite + typecheck**
+
+Run: `pnpm --filter @repo/slack test && pnpm --filter @repo/slack typecheck`
+Expected: all PASS (including the unchanged `reply.test.ts` for the still-exported `replyInThread`), no type errors.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add packages/slack/src/channel/agent-integration.ts packages/slack/src/channel/agent-integration.test.ts packages/slack/src/channel/instructions.md packages/slack/src/skills/slack-block-kit/SKILL.md
+git commit -m "feat(slack): make reply_with_blocks the single reply tool"
+```
+
 ## Done — verification checklist
 
 - [ ] `pnpm --filter @repo/slack test` — all unit tests pass.

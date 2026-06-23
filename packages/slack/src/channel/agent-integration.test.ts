@@ -20,8 +20,19 @@ test("creates a registry entry with Slack-owned instructions, parser, and tools"
   expect(integration.instructions).toContain("When the turn comes from Slack");
   expect(ref).toEqual({ teamId: "T1", channelId: "C1", threadTs: "100.0" });
   expect(tools.router.map((tool) => tool.name)).toEqual([
-    "reply_in_slack_thread",
+    "reply_with_blocks",
     "post_slack_progress",
   ]);
   expect(tools.subagent.map((tool) => tool.name)).toEqual(["post_slack_progress"]);
+});
+
+test("router toolset includes reply_with_blocks bound to the thread", () => {
+  const channel = {
+    parseConversationKey: (id: string) => ({ teamId: "T", channelId: "C", threadTs: id }),
+  } as unknown as SlackChannel;
+  const entry = createSlackAgentIntegrationEntry(channel, "instructions");
+  const names = entry
+    .tools({ teamId: "T", channelId: "C", threadTs: "1.1" })
+    .router.map((t) => t.name);
+  expect(names).toContain("reply_with_blocks");
 });

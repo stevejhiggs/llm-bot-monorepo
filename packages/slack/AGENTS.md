@@ -8,11 +8,12 @@ reply/progress tools, the GFM → mrkdwn converter, and the channel factory. The
 
 ## What's in here
 
-The package is grouped into three domain folders along its pure/side-effecting boundary —
-`events/` (pure inbound decision), `channel/` (the Flue channel plus everything that talks to the
-Slack Web API, and the agent-registry wiring), and `format/` (the pure GFM → mrkdwn converter) —
-plus the public `index.ts` barrel. Files are named for their role within a folder; nothing carries
-a redundant `slack-` prefix.
+The package is grouped into domain folders along its pure/side-effecting boundary —
+`events/` (pure inbound decision for Events API), `interactions/` (pure inbound decision for block
+actions), `channel/` (the Flue channel plus everything that talks to the Slack Web API, and the
+agent-registry wiring), `format/` (the pure GFM → mrkdwn converter and Block Kit schema/helpers),
+and `skills/` (agent skills) — plus the public `index.ts` barrel. Files are named for their role
+within a folder; nothing carries a redundant `slack-` prefix.
 
 ```
 src/
@@ -20,20 +21,29 @@ src/
 ├─ events/
 │  ├─ plan.ts                     # planSlackEvent() + SlackDispatch* types (pure inbound decision)
 │  └─ plan.test.ts
+├─ interactions/
+│  └─ plan.ts                     # planSlackInteraction() — pure inbound decision for block actions
 ├─ channel/
-│  ├─ channel.ts                  # createSlackBotChannel() — constructs the Flue channel for the bot's shim
+│  ├─ channel.ts                  # createSlackBotChannel() — constructs the Flue channel (events + interactions handlers)
 │  ├─ client.ts                   # the shared WebClient + workerdSafeFetch()
 │  ├─ thread-context.ts           # fetchThreadContext(), enrichWithThreadContext() — inbound enrichment
-│  ├─ reply.ts                    # replyInThread(), postProgressInThread() — outbound tools
+│  ├─ reply.ts                    # postProgressInThread() — best-effort progress tool
+│  ├─ actions.ts                  # reply_with_blocks tool definition
+│  ├─ interactions-ack.ts         # resolveInteractiveMessage() — best-effort message update after a click
 │  ├─ agent-integration.ts        # tested core for the bot's registry entry
 │  ├─ default-agent-integration.ts # ./agent-integration export; attaches instructions.md
 │  ├─ instructions.md             # the agent's "When the turn comes from Slack" prompt fragment (see below)
 │  ├─ client.test.ts
 │  ├─ thread-context.test.ts
 │  └─ reply.test.ts
-└─ format/
-   ├─ mrkdwn.ts                   # toMrkdwn() — GitHub-flavored markdown → Slack mrkdwn (pure)
-   └─ mrkdwn.test.ts
+├─ format/
+│  ├─ mrkdwn.ts                   # toMrkdwn() — GitHub-flavored markdown → Slack mrkdwn (pure)
+│  ├─ block-schema.ts             # BlocksSchema — valibot subset of Block Kit blocks
+│  ├─ blocks.ts                   # translateBlocks() — validates, converts mrkdwn, assigns action_ids, derives fallback
+│  └─ mrkdwn.test.ts
+└─ skills/
+   └─ slack-block-kit/
+      └─ SKILL.md                 # slack-block-kit skill — teaches the agent which Block Kit block to use
 ```
 
 `planSlackEvent` (pure) and `toMrkdwn` (pure) sit in `events/` and `format/`; everything that needs
@@ -43,7 +53,7 @@ against (a pure call vs an injected fake `WebClient`).
 
 `channel/instructions.md` is the Slack-specific section of the agent's prompt, exposed via the
 package's `exports` map (`"./instructions.md"`) and attached by the package's `./agent-integration`
-export. Keeping it here puts the prose describing `reply_in_slack_thread` / `post_slack_progress` /
+export. Keeping it here puts the prose describing `reply_with_blocks` / `post_slack_progress` /
 `threadContext` next to the tools it documents. See the root AGENTS.md "Source-dependent prompt".
 
 ## Public API
@@ -52,6 +62,11 @@ From `events/plan.ts`:
 - `planSlackEvent(payload): SlackDispatchPlan | null` — pure decision logic. The plan carries
   `messageTs` (the trigger's own `ts`) so the channel can tell a threaded reply apart from a root.
 - types `SlackDispatchPlan`, `SlackDispatchInput`.
+
+From `interactions/plan.ts`:
+- `planSlackInteraction(payload): { ref, input } | null` — pure inbound decision for block actions
+  (button clicks, overflow menu, static select). The inbound twin of `events/plan.ts`; handles
+  `button`, `overflow`, and `static_select` action types. Returns `null` for everything else.
 
 From `channel/client.ts`:
 - `workerdSafeFetch(baseFetch?): typeof fetch` — the fetch wrapper for `@slack/web-api` on workerd.
@@ -65,24 +80,41 @@ From `channel/thread-context.ts`:
 - `enrichWithThreadContext(plan, slack?)` — returns the input to dispatch, attaching `threadContext`
   when the turn is a reply inside an existing thread (`ref.threadTs !== messageTs`). Fail-quiet.
 
-From `channel/reply.ts`:
-- `replyInThread(ref, slack?)` — Flue tool factory for the final reply; bound to one thread.
-- `postProgressInThread(ref, slack?)` — Flue tool factory for best-effort progress notes.
+From `channel/reply.ts` / `channel/actions.ts`:
+- `reply_with_blocks` (defined in `actions.ts`) — Flue tool factory for the final reply; posts a
+  Block Kit message into the bound thread. The model supplies a validated `blocks` array (and
+  optional `text` fallback); destination is fixed at bind time. Throws on a Slack post failure
+  (loud); returns an error object to the model on invalid blocks so the model can retry.
+- `postProgressInThread(ref, slack?)` — Flue tool factory for best-effort progress notes (quiet).
 
 From `format/mrkdwn.ts`:
 - `toMrkdwn(markdown: string): string` — pure GFM → mrkdwn conversion.
 
+From `format/block-schema.ts`:
+- `BlocksSchema` — valibot subset of Block Kit: markdown/header/section/context/divider/image/
+  table/card/data_visualization/actions blocks; button/overflow/static_select elements.
+
+From `format/blocks.ts`:
+- `translateBlocks(blocks)` — validates the model's blocks array against `BlocksSchema`, converts
+  `mrkdwn`-typed text objects via `toMrkdwn`, assigns `action_id`s, and derives the `text` fallback.
+
+From `channel/interactions-ack.ts`:
+- `resolveInteractiveMessage(responseUrl, blocks?)` — posts a best-effort message update to
+  `response_url` after a block action click; swallows failures.
+
 From `channel/channel.ts`:
 - `createSlackBotChannel(options): SlackChannel` — builds the Flue channel. `options` is
-  `{ enabled, signingSecret?, agentName }`; the package reads no env. The handler runs
-  `planSlackEvent`, then `enrichWithThreadContext` (attaches prior thread messages for a threaded
-  turn), then dispatches by name (`dispatch({ agent: agentName, ... })`).
+  `{ enabled, signingSecret?, agentName }`; the package reads no env. Wires both an `events`
+  handler (`planSlackEvent` → `enrichWithThreadContext` → `dispatch`) and an `interactions` handler
+  (`planSlackInteraction` → `dispatch`, re-entering the same thread's agent as a `slack.block_action`
+  turn) under the same `SLACK_SIGNING_SECRET` verification. The interactions endpoint is
+  auto-served at `/channels/slack/interactions`.
 - type `SlackBotChannelOptions`.
 
 From `./agent-integration` (`channel/default-agent-integration.ts`):
 - `createSlackAgentIntegration(channel): SlackAgentIntegration` — returns the bot's registry entry
   for Slack: package-owned prompt fragment, `channel.parseConversationKey`, router
-  `reply_in_slack_thread` / `post_slack_progress`, and subagent `post_slack_progress`.
+  `reply_with_blocks` / `post_slack_progress`, and subagent `post_slack_progress`.
 - type `SlackAgentIntegration`.
 
 ## Contracts (do not break these)
@@ -97,7 +129,9 @@ text and cannot post elsewhere.
 
 ### 2. Reply fails loud; progress fails quiet
 
-`replyInThread` lets a failed post throw — the final result must reach the user or surface an error.
+`reply_with_blocks` throws on a failed Slack post — the final result must reach the user or surface
+an error. On invalid blocks (schema validation failure) it returns an error object to the model so
+the model can retry with corrected blocks, rather than crashing the turn.
 `postProgressInThread` swallows a failed post (logs, returns `{ ok: false }`): a transient Slack
 hiccup while narrating a long run must not abort the work. Keep this asymmetry. The progress tool is
 injected into the **subagents** (not just the router) so they can post phase milestones while the
@@ -136,9 +170,15 @@ labels authors with raw Slack ids (no `users.info`) and caps both the message co
 ## How the bot consumes it
 
 `channels/slack.ts` calls `createSlackBotChannel(...)` and exports the result as `channel`. The
-agent binds `replyInThread` and `postProgressInThread` per conversation: the router posts the
-opening ack and the final reply (through `toMrkdwn`), and the subagents post progress milestones in
-between.
+agent binds `reply_with_blocks` and `postProgressInThread` per conversation: the router posts the
+opening ack and the final reply as a Block Kit message (plain prose in a `markdown` block renders
+GFM directly — no `toMrkdwn` pass for the final reply; `toMrkdwn` still applies inside
+`post_slack_progress` notes and for `mrkdwn`-typed text objects within blocks), and the subagents
+post progress milestones in between. When a user clicks a button or selects a menu, the
+`/channels/slack/interactions` endpoint re-enters the same thread's agent as a `slack.block_action`
+turn. The `slack-block-kit` skill (`skills/slack-block-kit/SKILL.md`, exported as
+`"./skills/slack-block-kit/SKILL.md"`) is registered on the d0lt-bot agent only for Slack-channel
+turns, teaching the model which block to use for what.
 
 ## Dependencies
 

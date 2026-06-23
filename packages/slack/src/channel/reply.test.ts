@@ -1,43 +1,6 @@
 import type { WebClient } from "@slack/web-api";
 import { expect, test } from "vitest";
-import { postProgressInThread, replyInThread } from "./reply.ts";
-
-test("replyInThread posts to the bound thread and returns channel and ts", async () => {
-  const calls: Array<Record<string, unknown>> = [];
-  const fakeClient = {
-    chat: {
-      postMessage: async (args: Record<string, unknown>) => {
-        calls.push(args);
-        return { ok: true, channel: "D1", ts: "333.3" };
-      },
-    },
-  } as unknown as WebClient;
-
-  const tool = replyInThread({ channelId: "D1", threadTs: "222.2" }, fakeClient);
-  const result = JSON.parse(await tool.execute({ text: "Tests passed." }));
-
-  expect(result.channel).toBe("D1");
-  expect(result.ts).toBe("333.3");
-  expect(calls.length).toBe(1);
-  expect(calls[0]).toEqual({ channel: "D1", thread_ts: "222.2", text: "Tests passed." });
-});
-
-test("replyInThread converts the model's markdown to Slack mrkdwn", async () => {
-  const calls: Array<Record<string, unknown>> = [];
-  const fakeClient = {
-    chat: {
-      postMessage: async (args: Record<string, unknown>) => {
-        calls.push(args);
-        return { ok: true, channel: "D1", ts: "1" };
-      },
-    },
-  } as unknown as WebClient;
-
-  const tool = replyInThread({ channelId: "D1", threadTs: "222.2" }, fakeClient);
-  await tool.execute({ text: "**PASS** — see [repo](https://x/y)" });
-
-  expect(calls[0]?.text).toBe("*PASS* — see <https://x/y|repo>");
-});
+import { postProgressInThread } from "./reply.ts";
 
 test("post_slack_progress posts a converted note to the bound thread", async () => {
   const calls: Array<Record<string, unknown>> = [];

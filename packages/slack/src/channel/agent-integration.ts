@@ -1,6 +1,7 @@
 import type { SlackChannel, SlackThreadRef } from "@flue/slack";
 import type { ChannelIntegration } from "@repo/channel-registry";
-import { postProgressInThread, replyInThread } from "./reply.ts";
+import { postProgressInThread } from "./reply.ts";
+import { replyWithBlocks } from "./actions.ts";
 
 export type SlackAgentIntegration = ChannelIntegration<SlackThreadRef>;
 
@@ -13,7 +14,7 @@ export function createSlackAgentIntegrationEntry(
     parseConversationKey: (id) => channel.parseConversationKey(id),
     tools: (ref) => {
       const progress = postProgressInThread(ref);
-      return { router: [replyInThread(ref), progress], subagent: [progress] };
+      return { router: [replyWithBlocks(ref), progress], subagent: [progress] };
     },
   };
 }

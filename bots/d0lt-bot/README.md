@@ -80,6 +80,12 @@ reply/progress tools live in [`@repo/slack`](../../packages/slack/README.md#even
 short, an @-mention or a DM is treated like a chat request (a GitHub URL + what to do), the result
 is posted in-thread, and coarse progress milestones are posted while it works.
 
+Replies are posted as [Block Kit](https://docs.slack.dev/block-kit/) messages
+(`reply_with_blocks`): markdown, tables, cards, charts, and interactive buttons or menus. When the
+bot posts a button or menu and a user clicks it, Slack delivers the interaction to a **separate
+endpoint** (`/channels/slack/interactions`) and the click re-enters the same thread's agent as a new
+turn — so configuring that endpoint (below) is required for buttons/menus to work.
+
 ### Setup
 
 Two secrets, with different jobs: `SLACK_SIGNING_SECRET` verifies inbound requests, and
@@ -92,11 +98,19 @@ In your Slack app config:
 
 - **Event Subscriptions → Request URL:** `https://<your-app>/channels/slack/events`
 - **Subscribe to bot events:** `app_mention` and `message.im`
+- **Interactivity & Shortcuts → turn on Interactivity, Request URL:**
+  `https://<your-app>/channels/slack/interactions` — required for the buttons and menus the bot
+  posts via `reply_with_blocks`. Without it, a click does nothing. Like the events endpoint, this
+  route is served by the Flue Slack channel and verifies the `X-Slack-Signature` with the same
+  `SLACK_SIGNING_SECRET`, so no extra secret is needed; it only appears once the channel is enabled
+  (`CHANNEL_SLACK_ENABLE=true`). Slack sends a test `POST` when you save the URL — the app must be
+  deployed/running and the channel enabled for it to verify.
 - **OAuth scopes:** `app_mentions:read`, `chat:write`, and the `*:history` scopes for the
   conversations the bot runs in — `channels:history`, `groups:history`, `im:history`,
   `mpim:history`. When mentioned inside a thread the bot reads the earlier messages
   (`conversations.replies`) and passes them to the agent as context, which needs the matching
-  `*:history` scope.
+  `*:history` scope. (Posting Block Kit messages and receiving button clicks needs no scope beyond
+  `chat:write`.)
 
 ## Deploying to Cloudflare
 

@@ -17,7 +17,23 @@ Sometimes the turn is a Slack event delivered as a JSON object with a `type`
   while it works.
 - If `text` has no GitHub URL or isn't about reviewing a PR or running tests, reply
   briefly saying what you can do (review a PR, run a repo's tests).
-- After the subagent returns, **post the result back by calling the
-  `reply_in_slack_thread` tool** — the same content you would narrate in chat.
-  Posting the reply is how the user sees your answer; do not stop at narrating it.
-  (Write normal Markdown; it is converted to Slack formatting for you.)
+- After the subagent returns, **post the result back by calling the `reply_with_blocks`
+  tool** — the same content you would narrate in chat. For a plain text answer, send a
+  single `markdown` block: `[{ "type": "markdown", "text": "…your Markdown…" }]` (Slack
+  renders the Markdown, including tables). Posting the reply is how the user sees your
+  answer; do not stop at narrating it.
+
+## Posting rich Slack messages and handling clicks
+
+- `reply_with_blocks` is your single reply tool. For a plain answer, send one `markdown`
+  block; to make a message richer (a table, a card, status, buttons, or menus), add the
+  appropriate blocks. Consult the **slack-block-kit** skill for which block to use and the
+  limits. If a reply would exceed the `markdown` block's 12,000-character limit, split it
+  across multiple `reply_with_blocks` calls.
+- When you add buttons or a menu, put the information you'll need to act on the click into
+  each element's `value`. A click arrives later as a **`slack.block_action`** turn with
+  `elementType`, `actionId`, `value`, and `userId`. Treat it as the user's response to what
+  you posted: you already have the thread's context, so correlate it with what you proposed
+  (e.g. a `value` of `confirm` on a deploy you offered) and continue.
+- Any member of the thread can click; `userId` tells you who did. The clicked message's
+  buttons are removed automatically once clicked.

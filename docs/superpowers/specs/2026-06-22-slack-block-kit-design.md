@@ -47,6 +47,13 @@ the teaching skill), as opposed to a buttons-only first cut.
   Slack's product positioning (both exist to let agents post rich *messages*); because the
   reference pages don't quote it verbatim, the implementation plan **smoke-tests rendering
   in a real channel first** before the schema is built around them.
+- **Single reply tool.** Because the `markdown` block renders GFM directly (and more
+  faithfully than the lossy `toMrkdwn` path — tables survive), the agent posts every reply
+  through `reply_with_blocks`: plain prose is just one `markdown` block. This makes the
+  `markdown` block load-bearing for all replies, so the Task 1 smoke-test of that block is a
+  prerequisite, and replies longer than the block's 12,000-char limit are split across
+  multiple messages. `reply_in_slack_thread` is retained in code (exported, unbound) as a
+  fast rollback.
 - **`data_visualization` is in v1** (added at the user's request): a self-contained chart
   block (`pie`/`bar`/`area`/`line`, ≤6 series/segments, ≤50-char title), non-interactive,
   no nested blocks. Its message-surface support is likewise unverified, so it is included in
@@ -65,6 +72,7 @@ the teaching skill), as opposed to a buttons-only first cut.
 | Default text vehicle | **`markdown` block** (GFM passthrough); `section.text`+mrkdwn only when an accessory is needed. |
 | Skill location | `@repo/slack`, mirroring `@repo/github`'s `explore-repo` skill. |
 | `card` block | **In v1.** |
+| Reply tools | **Single `reply_with_blocks`.** Plain prose is sent as one `markdown` block; there is no separate plain-text reply tool bound to the agent. `reply_in_slack_thread` stays in code (exported, unbound) as a rollback until the smoke test confirms the `markdown` block renders in messages. This removes the "when to use blocks" decision entirely. |
 
 ## Scope: supported Block Kit subset (v1)
 
@@ -101,7 +109,7 @@ plus one thread-bound tool.
 | `channel/channel.ts` | edit | Add the `interactions` handler to the `createSlackChannel` call; factor the shared `dispatch` into a helper used by both `events` and `interactions`. |
 | `channel/agent-integration.ts` | edit | Add `replyWithBlocks(ref)` to the **router** toolset. |
 | `channel/instructions.md` | edit | Short section: rich messages via `reply_with_blocks`; clicks/selections arrive as `slack.block_action` turns; defer detail to the skill. |
-| `events/plan.ts` (`SlackDispatchInput`) | edit | Add the `"slack.block_action"` variant (below). |
+| `interactions/plan.ts` (`SlackBlockActionInput`) | new (in the file above) | The click-turn type lives beside `planSlackInteraction` as a standalone `SlackBlockActionInput` (below), **not** folded into `events/plan.ts`'s `SlackDispatchInput` — the two turn shapes share no fields, so a forced union would carry dead fields. Both flow through `dispatch` as JSON identically. |
 | `index.ts` | edit | Export the new public surface. |
 | `skills/slack-block-kit/SKILL.md` (+ optional `references/`) | new | The teaching skill (below). |
 | `package.json` (`@repo/slack`) | edit | Add `exports` entry `"./skills/slack-block-kit/SKILL.md": "./src/skills/slack-block-kit/SKILL.md"`. |
@@ -129,7 +137,7 @@ Behavior:
 - Posts via `chat.postMessage({ channel, thread_ts, text, blocks })`. Returns
   `{ channel, ts }`.
 
-### Interpreting a click — `SlackDispatchInput` variant
+### Interpreting a click — `SlackBlockActionInput` (in `interactions/plan.ts`)
 
 ```ts
 {

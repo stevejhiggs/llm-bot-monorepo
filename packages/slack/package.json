@@ -11,7 +11,8 @@
       "types": "./src/channel/default-agent-integration.ts",
       "default": "./src/channel/default-agent-integration.ts"
     },
-    "./instructions.md": "./src/channel/instructions.md"
+    "./instructions.md": "./src/channel/instructions.md",
+    "./skills/slack-block-kit/SKILL.md": "./src/skills/slack-block-kit/SKILL.md"
   },
   "scripts": {
     "test": "vitest run",

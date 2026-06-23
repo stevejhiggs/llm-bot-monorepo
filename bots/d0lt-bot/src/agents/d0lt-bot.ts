@@ -10,6 +10,7 @@ import { createGitHubAgentIntegration } from "@repo/github/agent-integration";
 import { createSlackAgentIntegration } from "@repo/slack/agent-integration";
 import baseInstructions from "./instructions.md" with { type: "markdown" };
 import exploreRepo from "@repo/github/skills/explore-repo/SKILL.md" with { type: "skill" };
+import slackBlockKit from "@repo/slack/skills/slack-block-kit/SKILL.md" with { type: "skill" };
 import { createReviewer } from "../subagents/reviewer/agent.ts";
 import { createTestRunner } from "../subagents/test-runner/agent.ts";
 
@@ -48,6 +49,10 @@ export default createAgent(async ({ id, env }) => {
   // outbound tool set from the same registry entry.
   const conversation = resolveRegisteredConversation(id, CHANNEL_REGISTRY);
   const instructions = [baseInstructions, conversation.instructions].filter(Boolean).join("\n");
+  // The block-kit skill is only useful when the Slack outbound tools are bound, i.e.
+  // for Slack-channel turns. Keep exploreRepo on every turn (repo inspection is
+  // cross-channel); add slackBlockKit only for Slack.
+  const skills = conversation.source === "slack" ? [exploreRepo, slackBlockKit] : [exploreRepo];
 
   const kind = resolveSandboxKind(process.env);
   const { sandbox, cwd } =
@@ -68,7 +73,7 @@ export default createAgent(async ({ id, env }) => {
     instructions,
     sandbox,
     cwd,
-    skills: [exploreRepo],
+    skills,
     subagents: [
       createReviewer(conversation.tools.subagent),
       createTestRunner(conversation.tools.subagent),

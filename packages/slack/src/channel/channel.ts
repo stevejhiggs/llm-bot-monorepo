@@ -8,7 +8,9 @@
 import { dispatch } from "@flue/runtime";
 import { createSlackChannel, type SlackChannel } from "@flue/slack";
 import { planSlackEvent } from "../events/plan.ts";
+import { planSlackInteraction } from "../interactions/plan.ts";
 import { enrichWithThreadContext } from "./thread-context.ts";
+import { resolveInteractiveMessage } from "./interactions-ack.ts";
 
 export interface SlackBotChannelOptions {
   // Whether the channel acts on events. When false it still constructs (Flue's
@@ -58,6 +60,29 @@ export function createSlackBotChannel(options: SlackBotChannelOptions): SlackCha
         // shares a conversation, so the bot keeps context across messages.
         id: channel.conversationKey(plan.ref),
         input,
+      });
+    },
+
+    async interactions({ payload }) {
+      if (!enabled) return;
+      const plan = planSlackInteraction(payload);
+      // Unhandled interaction types / malformed payloads → empty 200.
+      if (!plan) return;
+
+      // Disable the interacted message so it can't be re-clicked. Best-effort: a
+      // failure here must not stop the dispatch.
+      const responseUrl = (payload as { response_url?: string }).response_url;
+      if (responseUrl) {
+        const verb = plan.input.elementType === "button" ? "clicked" : "selected";
+        await resolveInteractiveMessage(responseUrl, `✅ You ${verb}: ${plan.input.value}`);
+      }
+
+      // One agent instance per Slack thread: the click re-enters the same
+      // conversation, which already holds the context of what it proposed.
+      await dispatch({
+        agent: agentName,
+        id: channel.conversationKey(plan.ref),
+        input: plan.input,
       });
     },
   });
