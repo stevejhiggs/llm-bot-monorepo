@@ -182,10 +182,7 @@ turns, teaching the model which block to use for what.
 
 ## Dependencies
 
-`@flue/runtime` (catalog `flue`, `1.0.0-beta.3`) + `@flue/slack` (catalog `flue`, `1.0.0-beta.1` —
-no beta.2/beta.3 published), `@repo/channel-registry` for the shared agent-integration type shape,
-`@slack/web-api` + `valibot` (catalog `external`). No dependency on `@repo/sandbox` or
-`@repo/github`.
+`@repo/channel-registry` for the shared agent-integration type shape.
 
 ## Tests
 

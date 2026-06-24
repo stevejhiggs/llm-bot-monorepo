@@ -80,9 +80,7 @@ lives here.
 
 ## Dependencies
 
-`@flue/runtime` only (catalog `flue`, `1.0.0-beta.3`), and only for its
-`FlueEvent` / `FlueEventSubscriber` types. No dependency on `@repo/sandbox`, `@repo/github`, or
-`@repo/slack`.
+None.
 
 ## Tests
 

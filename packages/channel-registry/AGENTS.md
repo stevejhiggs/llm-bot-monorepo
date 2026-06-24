@@ -57,8 +57,7 @@ shared type shape; this package must not depend on them.
 
 ## Dependencies
 
-`@flue/runtime` for the `ToolDefinition` type only. No dependency on other
-`@repo/*` packages.
+None.
 
 ## Tests
 

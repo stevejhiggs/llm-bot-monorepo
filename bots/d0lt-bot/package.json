@@ -28,12 +28,12 @@
     "hono": "^4.12.27"
   },
   "devDependencies": {
-    "@flue/cli": "1.0.0-beta.3",
+    "@flue/cli": "1.0.0-beta.5",
     "@flue/dev-console": "1.0.0-beta.3",
     "@types/node": "catalog:tooling",
     "typescript": "catalog:tooling",
     "vitest": "catalog:testing",
-    "wrangler": "^4.103.0"
+    "wrangler": "^4.104.0"
   },
   "engines": {
     "node": "24.x"

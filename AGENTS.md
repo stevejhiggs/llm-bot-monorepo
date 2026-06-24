@@ -107,8 +107,8 @@ rather than repeating them. When you change a package, read its `AGENTS.md` firs
 They form a shallow DAG: `@repo/channel-registry` is a shared leaf, GitHub/Slack depend on it for
 agent-integration types, and `bots/d0lt-bot → {channel-registry, sandbox, github, slack,
 observability}`. Versions are shared through pnpm catalogs in `pnpm-workspace.yaml` (`flue` / `cf` /
-`external`). `@flue/runtime` is `1.0.0-beta.3`; `@flue/github` / `@flue/slack` stay at `1.0.0-beta.1`
-(no beta.2/beta.3 published for those two).
+`external`). `@flue/runtime` is `1.0.0-beta.5`; `@flue/github` / `@flue/slack` stay at `1.0.0-beta.1`
+(no beta.2+ published for those two).
 
 ### One agent, three entry points
 

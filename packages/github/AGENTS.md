@@ -136,10 +136,7 @@ agent binds `commentOnIssue` per conversation; the subagents import `fetchRepoTo
 
 ## Dependencies
 
-`@flue/runtime` (catalog `flue`, `1.0.0-beta.3`) + `@flue/github` (catalog `flue`, `1.0.0-beta.1` —
-no beta.2/beta.3 published), `@repo/channel-registry` for the shared agent-integration type shape,
-`@octokit/rest`, `@octokit/plugin-throttling`, and `valibot` (catalog `external`). No dependency on
-`@repo/sandbox` or `@repo/slack`.
+`@repo/channel-registry` for the shared agent-integration type shape.
 
 ## Tests
 
