@@ -46,7 +46,7 @@ test("commentOnIssue posts to the bound issue and returns the comment id and url
   const octokit = new Octokit({ auth: "test-token", request: { fetch: fakeFetch } });
 
   const tool = commentOnIssue({ owner: "owner", repo: "repo", issueNumber: 7 }, octokit);
-  const result = (await tool.run({ input: { body: "Looks good." } })) as {
+  const result = (await tool.run({ input: { body: "Looks good." }, emitData: () => {} })) as {
     commentId: number;
     url: string;
   };

@@ -18,6 +18,7 @@ test("posts translated blocks to the bound thread with a fallback text", async (
   const tool = replyWithBlocks({ channelId: "C1", threadTs: "5.5" }, fake(calls));
   const result = await tool.run({
     input: { blocks: [{ type: "markdown", text: "Deploy ready" }] },
+    emitData: () => {},
   });
 
   expect(result).toEqual({ channel: "C1", ts: "9.9" });
@@ -30,14 +31,17 @@ test("posts translated blocks to the bound thread with a fallback text", async (
 test("uses caller-supplied fallback text when provided", async () => {
   const calls: Array<Record<string, unknown>> = [];
   const tool = replyWithBlocks({ channelId: "C1", threadTs: "5.5" }, fake(calls));
-  await tool.run({ input: { blocks: [{ type: "divider" }], text: "custom" } });
+  await tool.run({ input: { blocks: [{ type: "divider" }], text: "custom" }, emitData: () => {} });
   expect(calls[0].text).toBe("custom");
 });
 
 test("returns an error (does not post) when blocks are invalid", async () => {
   const calls: Array<Record<string, unknown>> = [];
   const tool = replyWithBlocks({ channelId: "C1", threadTs: "5.5" }, fake(calls));
-  const result = (await tool.run({ input: { blocks: [{ type: "carousel" }] } })) as {
+  const result = (await tool.run({
+    input: { blocks: [{ type: "carousel" }] },
+    emitData: () => {},
+  })) as {
     ok: boolean;
     error: string;
   };

@@ -33,17 +33,17 @@ catalogs:
     jsdom: ^29.1.1
 
   flue:
-    "@flue/runtime": 1.0.0-beta.5
+    "@flue/runtime": 1.0.0-beta.7
     # @flue/github and @flue/slack have no beta.2+ release yet — beta.1 is
     # their latest published version (the core @flue/* packages are at beta.5).
     "@flue/github": 1.0.0-beta.1
     "@flue/slack": 1.0.0-beta.1
 
   cf:
-    "@cloudflare/sandbox": ^0.12.1
+    "@cloudflare/sandbox": ^0.12.2
 
   external:
-    valibot: ^1.4.1
+    valibot: ^1.4.2
     "@octokit/plugin-throttling": ^11.0.3
     "@octokit/rest": ^22.0.1
     "@slack/web-api": 8.0.0-rc.1
