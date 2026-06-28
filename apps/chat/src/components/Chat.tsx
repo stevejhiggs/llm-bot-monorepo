@@ -1,4 +1,4 @@
-import { useFlueAgent } from "@flue/react";
+import { useFlueAgent, type UIMessage } from "@flue/react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -8,7 +8,6 @@ import { getOrCreateConversationId } from "../lib/conversation.ts";
 import { type FilePart, viewFile } from "../lib/file-part.ts";
 import { shouldSubmitOnKey } from "../lib/input-key.ts";
 import { type ToolPart, viewTool } from "../lib/tool-part.ts";
-import { type DisplayMessage, mergeTranscript } from "../lib/transcript.ts";
 
 const AGENT_NAME = "d0lt-bot";
 
@@ -21,12 +20,11 @@ export function Chat() {
   }, []);
 
   const [input, setInput] = useState("");
-  // We hold our own user messages (the runtime never echoes them, and the SDK
-  // drops its optimistic bubble) and merge them with the agent's replies for
-  // display. See lib/transcript.ts.
-  const [userMessages, setUserMessages] = useState<DisplayMessage[]>([]);
+  // The SDK transcript is the single source of truth: it shows the optimistic
+  // user bubble on send, reconciles it with the durable copy, and replays
+  // persisted user turns on reload. We render `agent.messages` directly.
   const agent = useFlueAgent({ name: AGENT_NAME, id: conversationId });
-  const messages = mergeTranscript(userMessages, agent.messages);
+  const messages = agent.messages;
 
   const ready = conversationId !== undefined;
   // Only the active turn counts as "thinking". `connecting` is the background
@@ -65,10 +63,6 @@ export function Chat() {
     const text = input.trim();
     if (!text || thinking || !ready) return;
     setInput("");
-    setUserMessages((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), role: "user", parts: [{ type: "text", text }] },
-    ]);
     void agent.sendMessage(text);
   }
 
@@ -138,7 +132,7 @@ export function Chat() {
   );
 }
 
-function Message({ message }: { message: DisplayMessage }) {
+function Message({ message }: { message: UIMessage }) {
   const isUser = message.role === "user";
   // Spoken parts (the model's words) go in a chat bubble; tool calls render as
   // their own activity blocks below, and file parts render as attachment rows.
